@@ -73,7 +73,7 @@ body.beige {
   font-size: 22px; font-weight: 800;
   color: var(--text); letter-spacing: -0.02em;
   background: transparent; border: none; outline: none;
-  font-family: 'Syne', sans-serif; width: 220px; padding: 0;
+  font-family: 'Syne', sans-serif; width: 380px; padding: 0;
   caret-color: var(--text);
 }
 
@@ -119,8 +119,18 @@ body.beige {
 /* ── Sets bar ────────────────────────────────────────────── */
 #sets-bar {
   position: fixed; top: 24px; right: 36px;
-  display: flex; align-items: center; gap: 5px; z-index: 21;
+  display: flex; align-items: flex-start; gap: 5px; z-index: 21;
 }
+.set-group { display: flex; flex-direction: column; align-items: stretch; gap: 2px; }
+.set-sub { display: flex; gap: 2px; }
+.set-sub-btn {
+  font-family: 'Syne Mono', monospace; font-size: 8px; letter-spacing: .06em;
+  color: var(--text-label); background: transparent; border: none;
+  cursor: pointer; padding: 2px 4px; border-radius: 2px; transition: all 0.15s; flex: 1;
+  text-align: center;
+}
+.set-sub-done:hover { color: var(--zone-check) !important; }
+.set-sub-del:hover  { color: #e06060 !important; }
 #sets-bar .s-label {
   font-family: 'Syne Mono', monospace;
   font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase;
@@ -188,6 +198,35 @@ body.beige {
   font-family: 'Syne Mono', monospace; font-size: 9px;
   color: var(--text-label); margin-left: auto; white-space: nowrap;
 }
+.done-close {
+  background: none; border: none; color: var(--text-dim); cursor: pointer;
+  font-size: 14px; line-height: 1; padding: 0 0 0 8px; opacity: .6;
+}
+.done-close:hover { opacity: 1; }
+
+/* ── Context menu ──────────────────────────────────────────── */
+#ctx-menu {
+  position: fixed; z-index: 200; display: none;
+  background: var(--panel-bg); backdrop-filter: blur(16px);
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 5px 0; min-width: 290px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.45);
+}
+.ctx-cols { display: flex; }
+.ctx-col { flex: 1; min-width: 0; }
+.ctx-col + .ctx-col { border-left: 1px solid var(--border); }
+.ctx-title {
+  font-size: 9px; text-transform: uppercase; letter-spacing: .1em;
+  color: var(--text-dim); padding: 4px 12px 7px;
+  border-bottom: 1px solid var(--border); margin-bottom: 3px;
+}
+.ctx-item {
+  display: flex; align-items: center; gap: 9px;
+  padding: 7px 12px; font-size: 12px; cursor: pointer; color: var(--text);
+}
+.ctx-item:hover { background: rgba(255,255,255,.06); }
+.ctx-item.current { opacity: .4; cursor: default; }
+.ctx-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 
 /* ── Done zones (left / right) ───────────────────────────── */
 .zone {
@@ -266,10 +305,12 @@ body.beige {
 }
 #vis-btn:hover { color: var(--text); }
 #vis-panel {
-  position: fixed; top: 120px; right: 36px; width: 200px;
+  position: fixed; top: 120px; right: 36px; width: 220px;
+  max-height: calc(100vh - 140px); overflow-y: auto;
   background: var(--panel-bg); backdrop-filter: blur(14px);
   border: 1px solid var(--border); border-radius: 3px;
-  padding: 14px 16px; z-index: 21; display: none;
+  padding: 14px 16px 28px; z-index: 21; display: none;
+  scrollbar-width: thin; scrollbar-color: var(--border) transparent;
 }
 #vis-panel .vp-title {
   font-family: 'Syne Mono', monospace; font-size: 9px;
@@ -286,6 +327,11 @@ body.beige {
 .vp-row input[type=range] {
   width: 100%; accent-color: var(--tab-act-text);
   background: transparent; cursor: pointer;
+}
+.vp-section {
+  font-family: 'Syne Mono', monospace; font-size: 8px; letter-spacing: 0.18em;
+  text-transform: uppercase; color: var(--text-label);
+  border-top: 1px solid var(--border); margin: 8px 0 6px; padding-top: 6px;
 }
 
 /* ── Palette swatches ────────────────────────────────────── */
@@ -316,7 +362,7 @@ body.beige {
 
 <div id="header">
   <div class="label">Aktuelle Todos</div>
-  <input id="title-edit" type="text" value="Todo Bälle" />
+  <input id="title-edit" type="text" value="Todo Bälle" oninput="adjustTitleSize(); saveState()" />
 </div>
 
 <div id="cat-bar"></div>
@@ -327,20 +373,112 @@ body.beige {
 <button id="vis-btn" onclick="toggleVisPanel()">⚙ Optik</button>
 <div id="vis-panel">
   <div class="vp-title">Visualisierung</div>
+
+  <div class="vp-section">Anzahl</div>
   <div class="vp-row">
-    <label>Linien <span id="lbl-density">1.0</span></label>
-    <input type="range" id="sl-density" min="0.2" max="1.5" step="0.1" value="1.0"
-      oninput="visDensity=+this.value; document.getElementById('lbl-density').textContent=this.value">
+    <label>Innen ↔ <span id="lbl-cnt-in-lat">5</span></label>
+    <input type="range" id="sl-cnt-in-lat" min="0" max="7" step="1" value="5"
+      oninput="visCntInLat=+this.value; document.getElementById('lbl-cnt-in-lat').textContent=this.value">
   </div>
+  <div class="vp-row">
+    <label>Innen ↕ <span id="lbl-cnt-in-lon">2</span></label>
+    <input type="range" id="sl-cnt-in-lon" min="0" max="5" step="1" value="2"
+      oninput="visCntInLon=+this.value; document.getElementById('lbl-cnt-in-lon').textContent=this.value">
+  </div>
+  <div class="vp-row">
+    <label>Außen ↔ <span id="lbl-cnt-out-lat">2</span></label>
+    <input type="range" id="sl-cnt-out-lat" min="0" max="2" step="1" value="2"
+      oninput="visCntOutLat=+this.value; document.getElementById('lbl-cnt-out-lat').textContent=this.value">
+  </div>
+  <div class="vp-row">
+    <label>Außen ↕ <span id="lbl-cnt-out-lon">3</span></label>
+    <input type="range" id="sl-cnt-out-lon" min="0" max="3" step="1" value="3"
+      oninput="visCntOutLon=+this.value; document.getElementById('lbl-cnt-out-lon').textContent=this.value">
+  </div>
+  <div class="vp-row">
+    <label>Punkte Trail <span id="lbl-cnt-points">8</span></label>
+    <input type="range" id="sl-cnt-points" min="0" max="12" step="1" value="8"
+      oninput="visCntPoints=+this.value; document.getElementById('lbl-cnt-points').textContent=this.value">
+  </div>
+
+  <div class="vp-section">Helligkeit</div>
+  <div class="vp-row">
+    <label>Innen ↔ <span id="lbl-inner-lat">1.0</span></label>
+    <input type="range" id="sl-inner-lat" min="0" max="1.5" step="0.05" value="1.0"
+      oninput="visInnerLat=+this.value; document.getElementById('lbl-inner-lat').textContent=this.value">
+  </div>
+  <div class="vp-row">
+    <label>Innen ↕ <span id="lbl-inner-lon">1.0</span></label>
+    <input type="range" id="sl-inner-lon" min="0" max="1.5" step="0.05" value="1.0"
+      oninput="visInnerLon=+this.value; document.getElementById('lbl-inner-lon').textContent=this.value">
+  </div>
+  <div class="vp-row">
+    <label>Außen ↔ <span id="lbl-outer-lat">1.0</span></label>
+    <input type="range" id="sl-outer-lat" min="0" max="1.5" step="0.05" value="1.0"
+      oninput="visOuterLat=+this.value; document.getElementById('lbl-outer-lat').textContent=this.value">
+  </div>
+  <div class="vp-row">
+    <label>Außen ↕ <span id="lbl-outer-lon">1.0</span></label>
+    <input type="range" id="sl-outer-lon" min="0" max="1.5" step="0.05" value="1.0"
+      oninput="visOuterLon=+this.value; document.getElementById('lbl-outer-lon').textContent=this.value">
+  </div>
+  <div class="vp-row">
+    <label>Punkte <span id="lbl-points">1.0</span></label>
+    <input type="range" id="sl-points" min="0" max="1.5" step="0.05" value="1.0"
+      oninput="visPoints=+this.value; document.getElementById('lbl-points').textContent=this.value">
+  </div>
+
+  <div class="vp-section">3D Text</div>
+  <div class="vp-row">
+    <label>Kontur <span id="lbl-3d-stroke">0.07</span></label>
+    <input type="range" id="sl-3d-stroke" min="0" max="0.25" step="0.01" value="0.07"
+      oninput="vis3dStroke=+this.value; document.getElementById('lbl-3d-stroke').textContent=this.value">
+  </div>
+  <div class="vp-row">
+    <label>Innenfüllung <span id="lbl-3d-fill">0.06</span></label>
+    <input type="range" id="sl-3d-fill" min="0" max="0.80" step="0.01" value="0.06"
+      oninput="vis3dFill=+this.value; document.getElementById('lbl-3d-fill').textContent=this.value">
+  </div>
+  <div class="vp-row">
+    <label>Glow <span id="lbl-3d-glow">0.0</span></label>
+    <input type="range" id="sl-3d-glow" min="0" max="1.5" step="0.05" value="0.0"
+      oninput="vis3dGlow=+this.value; document.getElementById('lbl-3d-glow').textContent=this.value">
+  </div>
+  <div class="vp-row">
+    <label>Schatten <span id="lbl-3d-shadow">0.28</span></label>
+    <input type="range" id="sl-3d-shadow" min="0" max="1.0" step="0.01" value="0.28"
+      oninput="vis3dShadow=+this.value; document.getElementById('lbl-3d-shadow').textContent=this.value">
+  </div>
+  <div class="vp-row">
+    <label>Sch. Abstand <span id="lbl-3d-sdist">0.1</span></label>
+    <input type="range" id="sl-3d-sdist" min="0" max="1.5" step="0.05" value="0.1"
+      oninput="vis3dShadowDist=+this.value; document.getElementById('lbl-3d-sdist').textContent=this.value">
+  </div>
+  <div class="vp-row">
+    <label>Position <span id="lbl-3d-lift">0.0</span></label>
+    <input type="range" id="sl-3d-lift" min="-2.0" max="2.0" step="0.1" value="0.0"
+      oninput="vis3dLift=+this.value; document.getElementById('lbl-3d-lift').textContent=this.value">
+  </div>
+  <div class="vp-row">
+    <label>Wölbung <span id="lbl-3d-arch">1.0</span></label>
+    <input type="range" id="sl-3d-arch" min="0" max="3.0" step="0.1" value="1.0"
+      oninput="vis3dArch=+this.value; document.getElementById('lbl-3d-arch').textContent=this.value">
+  </div>
+  <div class="vp-row">
+    <label>Neigung <span id="lbl-3d-tilt">0.0</span></label>
+    <input type="range" id="sl-3d-tilt" min="0" max="1.0" step="0.05" value="0.0"
+      oninput="vis3dTilt=+this.value; document.getElementById('lbl-3d-tilt').textContent=this.value">
+  </div>
+  <div class="vp-row">
+    <label>Scheibe <span id="lbl-3d-disc">0.20</span></label>
+    <input type="range" id="sl-3d-disc" min="0.02" max="0.60" step="0.01" value="0.20"
+      oninput="vis3dDisc=+this.value; document.getElementById('lbl-3d-disc').textContent=this.value">
+  </div>
+  <div class="vp-section">Sonstige</div>
   <div class="vp-row">
     <label>Speed <span id="lbl-speed">1.0</span></label>
     <input type="range" id="sl-speed" min="0.2" max="2.5" step="0.1" value="1.0"
       oninput="visSpeed=+this.value; document.getElementById('lbl-speed').textContent=this.value">
-  </div>
-  <div class="vp-row">
-    <label>Linienhelligkeit <span id="lbl-intensity">1.0</span></label>
-    <input type="range" id="sl-intensity" min="0.2" max="1.5" step="0.1" value="1.0"
-      oninput="visIntensity=+this.value; document.getElementById('lbl-intensity').textContent=this.value">
   </div>
   <div class="vp-row">
     <label>Kugelkörper <span id="lbl-ball">1.0</span></label>
@@ -362,19 +500,28 @@ body.beige {
     <input type="range" id="sl-bgdark" min="0.0" max="3.0" step="0.1" value="1.0"
       oninput="visBgDark=+this.value; document.getElementById('lbl-bgdark').textContent=this.value">
   </div>
+  <div class="vp-row" style="flex-direction:row;align-items:center;gap:8px;margin-top:2px">
+    <input type="checkbox" id="cb-white-lines" style="width:16px;height:16px;cursor:pointer;accent-color:#aaa"
+      onchange="visWhiteLines=this.checked">
+    <label for="cb-white-lines" style="cursor:pointer;font-size:12px">Linien weiß</label>
+  </div>
   <div class="vp-row" style="margin-top:4px">
-    <label style="margin-bottom:6px">Beige Farben</label>
+    <label style="margin-bottom:6px">Farben</label>
     <div style="display:flex;flex-wrap:wrap;gap:6px" id="pal-row"></div>
   </div>
+  <div style="height:16px"></div>
 </div>
 
 <div id="done-panel">
   <div class="done-hdr">
     <span class="done-lbl">Erledigt</span>
     <span class="done-cnt" id="done-cnt">0</span>
+    <button class="done-close" onclick="document.getElementById('done-panel').style.display='none'" title="Ausblenden">×</button>
   </div>
   <ul id="done-list"></ul>
 </div>
+
+<div id="ctx-menu"></div>
 
 <div class="zone" id="zone-l">
   <div class="zone-badge">
@@ -405,45 +552,206 @@ body.beige {
 const { Engine, Bodies, Body, Composite, Events, Mouse, MouseConstraint } = Matter;
 
 // ─── VIS SETTINGS ────────────────────────────────────────────────────────────
-let visDensity      = 1.0;
+let visCntInLat     = 5;    // Anzahl innen  Querschnitt (0-7)
+let visCntInLon     = 2;    // Anzahl innen  Längsschnitt (0-5)
+let visCntOutLat    = 2;    // Anzahl außen  Querschnitt (0-2)
+let visCntOutLon    = 3;    // Anzahl außen  Längsschnitt (0-3)
+let visCntPoints    = 8;    // Punkte Trail-Länge (0-12)
 let visSpeed        = 1.0;
-let visIntensity    = 1.0;
+let visInnerLat     = 1.0;  // Linien innen  Querschnitt
+let visInnerLon     = 1.0;  // Linien innen  Längsschnitt
+let visOuterLat     = 1.0;  // Linien außen  Querschnitt
+let visOuterLon     = 1.0;  // Linien außen  Längsschnitt
+let visPoints       = 1.0;  // Orbit-Punkte (Sparks)
+let visWhiteLines   = false; // alle Linien + Punkte auf Weiß
+let vis3dStroke     = 0.07;  // Konturstärke (Faktor × fs)
+let vis3dFill       = 0.06;  // Innenfüllung (Opazität)
+let vis3dShadow     = 0.28;  // Schatten Stärke
+let vis3dShadowDist = 0.10;  // Schatten Abstand (Faktor × fs)
+let vis3dLift       = 0.0;   // Position (+hoch / −tief, Faktor × eRy)
+let vis3dArch       = 1.0;   // Wölbung — Bogenstärke an den Rändern
+let vis3dTilt       = 0.0;   // Neigung — Buchstaben-Kippwinkel (0=aufrecht, 1=voll)
+let vis3dDisc       = 0.20;  // Scheibe — Schattensquish-Ratio
+let vis3dGlow       = 0.0;   // Glow — Leuchteffekt um die Schrift
 let visBallOpacity  = 1.0;
 let visGlow         = 1.0;
 let visBallBase     = 1.0;
-let visBgDark       = 0.0;   // 0 = current bg, 1 = deeper black
+let visBgDark       = 0.0;
 
 const visPresets = {
-  dark:  { density: 1.0, speed: 1.0, intensity: 1.0, ball: 1.0, glow: 1.0, base: 0.0, bgDark: 1.0 },
-  beige: { density: 1.0, speed: 1.0, intensity: 1.0, ball: 1.0, glow: 1.0, base: 1.0, bgDark: 1.0 },
+  dark:  { cntInLat:5, cntInLon:2, cntOutLat:2, cntOutLon:3, cntPoints:8,
+           speed:1.0, innerLat:1.0, innerLon:1.0, outerLat:1.0, outerLon:1.0, points:1.0,
+           whiteLines:false,
+           s3stroke:0.07, s3fill:0.06, s3glow:0.0, s3shadow:0.28, s3sdist:0.10,
+           s3lift:0.0, s3arch:1.0, s3tilt:0.0, s3disc:0.20,
+           ball:1.0, glow:1.0, base:0.0, bgDark:1.0 },
+  beige: { cntInLat:5, cntInLon:2, cntOutLat:2, cntOutLon:3, cntPoints:8,
+           speed:1.0, innerLat:1.0, innerLon:1.0, outerLat:1.0, outerLon:1.0, points:1.0,
+           whiteLines:false,
+           s3stroke:0.07, s3fill:0.06, s3glow:0.0, s3shadow:0.28, s3sdist:0.10,
+           s3lift:0.0, s3arch:1.0, s3tilt:0.0, s3disc:0.20,
+           ball:1.0, glow:1.0, base:1.0, bgDark:1.0 },
 };
 
 function visSave() {
-  visPresets[theme] = { density: visDensity, speed: visSpeed, intensity: visIntensity, ball: visBallOpacity, glow: visGlow, base: visBallBase, bgDark: visBgDark };
+  visPresets[theme] = {
+    cntInLat:visCntInLat, cntInLon:visCntInLon, cntOutLat:visCntOutLat, cntOutLon:visCntOutLon, cntPoints:visCntPoints,
+    speed:visSpeed, innerLat:visInnerLat, innerLon:visInnerLon, outerLat:visOuterLat, outerLon:visOuterLon, points:visPoints,
+    whiteLines:visWhiteLines,
+    s3stroke:vis3dStroke, s3fill:vis3dFill, s3glow:vis3dGlow,
+    s3shadow:vis3dShadow, s3sdist:vis3dShadowDist,
+    s3lift:vis3dLift, s3arch:vis3dArch, s3tilt:vis3dTilt, s3disc:vis3dDisc,
+    ball:visBallOpacity, glow:visGlow, base:visBallBase, bgDark:visBgDark,
+  };
 }
 
 function visLoad(t) {
   const p = visPresets[t];
-  visDensity = p.density; visSpeed = p.speed; visIntensity = p.intensity; visBallOpacity = p.ball; visGlow = p.glow ?? 1.0; visBallBase = p.base ?? 0.0; visBgDark = p.bgDark ?? 1.0;
-  document.getElementById('sl-density').value   = p.density;
-  document.getElementById('sl-speed').value     = p.speed;
-  document.getElementById('sl-intensity').value = p.intensity;
-  document.getElementById('sl-ball').value      = p.ball;
-  document.getElementById('sl-glow').value      = visGlow;
-  document.getElementById('sl-base').value      = visBallBase;
-  document.getElementById('sl-bgdark').value    = visBgDark;
-  document.getElementById('lbl-density').textContent   = p.density;
-  document.getElementById('lbl-speed').textContent     = p.speed;
-  document.getElementById('lbl-intensity').textContent = p.intensity;
-  document.getElementById('lbl-ball').textContent      = p.ball;
-  document.getElementById('lbl-glow').textContent      = visGlow;
-  document.getElementById('lbl-base').textContent      = visBallBase;
-  document.getElementById('lbl-bgdark').textContent    = visBgDark;
+  visCntInLat    = p.cntInLat   ?? 5;
+  visCntInLon    = p.cntInLon   ?? 2;
+  visCntOutLat   = p.cntOutLat  ?? 2;
+  visCntOutLon   = p.cntOutLon  ?? 3;
+  visCntPoints   = p.cntPoints  ?? 8;
+  visSpeed       = p.speed      ?? 1.0;
+  visInnerLat    = p.innerLat   ?? 1.0;
+  visInnerLon    = p.innerLon   ?? 1.0;
+  visOuterLat    = p.outerLat   ?? 1.0;
+  visOuterLon    = p.outerLon   ?? 1.0;
+  visPoints      = p.points     ?? 1.0;
+  visWhiteLines  = p.whiteLines ?? false;
+  vis3dStroke     = p.s3stroke ?? 0.07;
+  vis3dFill       = p.s3fill   ?? 0.06;
+  vis3dGlow       = p.s3glow   ?? 0.0;
+  vis3dShadow     = p.s3shadow ?? 0.28;
+  vis3dShadowDist = p.s3sdist  ?? 0.10;
+  vis3dLift       = p.s3lift   ?? 0.0;
+  vis3dArch       = p.s3arch   ?? 1.0;
+  vis3dTilt       = p.s3tilt   ?? 0.0;
+  vis3dDisc       = p.s3disc   ?? 0.20;
+  visBallOpacity = p.ball       ?? 1.0;
+  visGlow        = p.glow       ?? 1.0;
+  visBallBase    = p.base       ?? 0.0;
+  visBgDark      = p.bgDark     ?? 1.0;
+  const sv = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+  const sl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  sv('sl-cnt-in-lat',  visCntInLat);   sl('lbl-cnt-in-lat',  visCntInLat);
+  sv('sl-cnt-in-lon',  visCntInLon);   sl('lbl-cnt-in-lon',  visCntInLon);
+  sv('sl-cnt-out-lat', visCntOutLat);  sl('lbl-cnt-out-lat', visCntOutLat);
+  sv('sl-cnt-out-lon', visCntOutLon);  sl('lbl-cnt-out-lon', visCntOutLon);
+  sv('sl-cnt-points',  visCntPoints);  sl('lbl-cnt-points',  visCntPoints);
+  sv('sl-speed',       visSpeed);      sl('lbl-speed',       visSpeed);
+  sv('sl-inner-lat',   visInnerLat);   sl('lbl-inner-lat',   visInnerLat);
+  sv('sl-inner-lon',   visInnerLon);   sl('lbl-inner-lon',   visInnerLon);
+  sv('sl-outer-lat',   visOuterLat);   sl('lbl-outer-lat',   visOuterLat);
+  sv('sl-outer-lon',   visOuterLon);   sl('lbl-outer-lon',   visOuterLon);
+  sv('sl-points',      visPoints);     sl('lbl-points',      visPoints);
+  sv('sl-ball',        visBallOpacity);sl('lbl-ball',        visBallOpacity);
+  sv('sl-glow',        visGlow);       sl('lbl-glow',        visGlow);
+  sv('sl-base',        visBallBase);   sl('lbl-base',        visBallBase);
+  sv('sl-bgdark',      visBgDark);     sl('lbl-bgdark',      visBgDark);
+  const cb = document.getElementById('cb-white-lines'); if (cb) cb.checked = visWhiteLines;
+  sv('sl-3d-stroke', vis3dStroke);     sl('lbl-3d-stroke', vis3dStroke);
+  sv('sl-3d-fill',   vis3dFill);       sl('lbl-3d-fill',   vis3dFill);
+  sv('sl-3d-glow',   vis3dGlow);       sl('lbl-3d-glow',   vis3dGlow);
+  sv('sl-3d-shadow', vis3dShadow);     sl('lbl-3d-shadow', vis3dShadow);
+  sv('sl-3d-sdist',  vis3dShadowDist); sl('lbl-3d-sdist',  vis3dShadowDist);
+  sv('sl-3d-lift',   vis3dLift);       sl('lbl-3d-lift',   vis3dLift);
+  sv('sl-3d-arch',   vis3dArch);       sl('lbl-3d-arch',   vis3dArch);
+  sv('sl-3d-tilt',   vis3dTilt);       sl('lbl-3d-tilt',   vis3dTilt);
+  sv('sl-3d-disc',   vis3dDisc);       sl('lbl-3d-disc',   vis3dDisc);
 }
 
 function toggleVisPanel() {
   const p = document.getElementById('vis-panel');
-  p.style.display = p.style.display === 'block' ? 'none' : 'block';
+  if (p.style.display === 'block') {
+    p.style.display = 'none';
+    visSave();
+    saveState();
+  } else {
+    p.style.display = 'block';
+  }
+}
+
+// ─── TITLE RESIZE ────────────────────────────────────────────────────────────
+function adjustTitleSize() {
+  const el = document.getElementById('title-edit');
+  const len = el.value.length || 1;
+  const fs = Math.max(12, 22 - Math.max(0, len - 9) * 0.62);
+  el.style.fontSize = fs.toFixed(1) + 'px';
+}
+
+// ─── PERSISTENCE ─────────────────────────────────────────────────────────────
+function persistState() {
+  try {
+    const state = {
+      v: 4,
+      theme,
+      title: document.getElementById('title-edit').value,
+      categories: JSON.parse(JSON.stringify(categories)),
+      sets: JSON.parse(JSON.stringify(sets)),
+      doneTodosPerSet: JSON.parse(JSON.stringify(doneTodosPerSet)),
+      activeSet,
+      nextId,
+      visPresets: JSON.parse(JSON.stringify(visPresets)),
+      darkColors:  { ...T.dark.colors },
+      beigeColors: { ...T.beige.colors },
+    };
+    localStorage.setItem('todoPhysics_v4', JSON.stringify(state));
+  } catch(e) { /* storage disabled or full */ }
+}
+
+function saveState() {
+  sets[activeSet]            = balls.map(b => ({ ...b.data }));
+  doneTodosPerSet[activeSet] = doneTodos.slice();
+  persistState();
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem('todoPhysics_v4');
+    if (!raw) return false;
+    const s = JSON.parse(raw);
+    if (!s || s.v !== 4) return false;
+
+    // Theme
+    theme = s.theme === 'beige' ? 'beige' : 'dark';
+    document.body.classList.toggle('beige', theme === 'beige');
+    document.getElementById('theme-btn').textContent = theme === 'dark' ? '◐ Hell' : '◑ Dunkel';
+
+    // Title
+    if (s.title) {
+      document.getElementById('title-edit').value = s.title;
+      adjustTitleSize();
+    }
+
+    // Colors (custom categories + base overrides)
+    if (s.darkColors)  Object.assign(T.dark.colors,  s.darkColors);
+    if (s.beigeColors) Object.assign(T.beige.colors, s.beigeColors);
+
+    // Categories
+    if (s.categories && s.categories.length) categories = s.categories;
+
+    // Sets + done per set
+    if (s.sets) sets = s.sets;
+    if (s.doneTodosPerSet) doneTodosPerSet = s.doneTodosPerSet;
+    if (s.activeSet && s.sets && s.sets[s.activeSet] !== undefined) activeSet = s.activeSet;
+    doneTodos = (doneTodosPerSet[activeSet] || []).slice();
+
+    // nextId
+    if (s.nextId) nextId = s.nextId;
+
+    // Vis presets
+    if (s.visPresets) {
+      if (s.visPresets.dark)  Object.assign(visPresets.dark,  s.visPresets.dark);
+      if (s.visPresets.beige) Object.assign(visPresets.beige, s.visPresets.beige);
+    }
+    visLoad(theme);
+
+    return true;
+  } catch(e) {
+    console.warn('loadState error:', e);
+    return false;
+  }
 }
 
 // ─── BEIGE COLORS ────────────────────────────────────────────────────────────
@@ -456,32 +764,25 @@ const beigeColors = {
 function buildPaletteRow() {
   const row = document.getElementById('pal-row');
   row.innerHTML = '';
-  const cats = [
-    { key: 'urgent',   label: 'Drng' },
-    { key: 'workflow', label: 'Work' },
-    { key: 'reminder', label: 'Erin' },
-  ];
-  cats.forEach(c => {
+  categories.forEach(cat => {
     const wrap = document.createElement('div');
     wrap.style.cssText = 'display:flex;align-items:center;gap:5px;flex:0 0 calc(50% - 3px);';
     const inp = document.createElement('input');
     inp.type  = 'color';
-    inp.value = beigeColors[c.key];
+    inp.value = getT().colors[cat.id] || '#888888';
     inp.style.cssText = 'width:28px;height:20px;padding:1px;border:1px solid var(--border);border-radius:2px;background:transparent;cursor:pointer;flex-shrink:0;';
     inp.oninput = () => {
-      beigeColors[c.key]    = inp.value;
-      T.beige.colors[c.key] = inp.value;
+      getT().colors[cat.id] = inp.value;
       rebuildCatBar();
+      saveState();
     };
     const lbl = document.createElement('label');
-    lbl.style.cssText = 'margin-bottom:0;font-family:\'Syne Mono\',monospace;font-size:9px;letter-spacing:.10em;text-transform:uppercase;color:var(--text-dim);white-space:nowrap;';
-    lbl.textContent = c.label;
+    lbl.style.cssText = 'margin-bottom:0;font-family:\'Syne Mono\',monospace;font-size:9px;letter-spacing:.10em;text-transform:uppercase;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:70px;';
+    lbl.textContent = cat.name.substring(0, 8);
     wrap.appendChild(inp);
     wrap.appendChild(lbl);
     row.appendChild(wrap);
   });
-  // Apply current picks to theme
-  cats.forEach(c => { T.beige.colors[c.key] = beigeColors[c.key]; });
 }
 
 // ─── THEME ──────────────────────────────────────────────────────────────────
@@ -536,7 +837,9 @@ function toggleTheme() {
   document.getElementById('theme-btn').textContent = theme === 'dark' ? '◐ Hell' : '◑ Dunkel';
   visLoad(theme);
   rebuildCatBar();
+  buildPaletteRow();
   renderDoneList();
+  saveState();
 }
 
 // ─── CATEGORIES ──────────────────────────────────────────────────────────────
@@ -617,7 +920,7 @@ function setFilter(f) {
 
 function toggleCatVis(id) {
   const cat = categories.find(c => c.id === id);
-  if (cat) { cat.visible = !cat.visible; rebuildCatBar(); applyFilter(); }
+  if (cat) { cat.visible = !cat.visible; rebuildCatBar(); applyFilter(); saveState(); }
 }
 
 function deleteCat(id) {
@@ -637,14 +940,16 @@ function deleteCat(id) {
   categories = categories.filter(c => c.id !== id);
   if (activeFilter === id) activeFilter = 'all';
   rebuildCatBar();
+  buildPaletteRow();
   renderDoneList();
+  saveState();
 }
 
 function renameCat(id) {
   const cat = categories.find(c => c.id === id);
   if (!cat) return;
   const n = prompt('Kategorie umbenennen:', cat.name);
-  if (n && n.trim()) { cat.name = n.trim(); rebuildCatBar(); }
+  if (n && n.trim()) { cat.name = n.trim(); rebuildCatBar(); buildPaletteRow(); saveState(); }
 }
 
 function addCat() {
@@ -656,21 +961,52 @@ function addCat() {
   T.beige.colors[id] = EXTRA_COLORS_BEIGE[idx % EXTRA_COLORS_BEIGE.length];
   categories.push({ id, name: n.trim(), visible: true });
   rebuildCatBar();
+  buildPaletteRow();
+  saveState();
 }
 
 // ─── SETS ────────────────────────────────────────────────────────────────────
 let sets = { 'Praxis': [], 'Privat': [] };
+let doneTodosPerSet = { 'Praxis': [], 'Privat': [] };
 let activeSet = 'Praxis';
 
 function buildSetsBar() {
   const bar = document.getElementById('sets-bar');
-  bar.innerHTML = '<span class="s-label">Sets</span>';
+  bar.innerHTML = '<span class="s-label" style="padding-top:6px">Sets</span>';
   Object.keys(sets).forEach(name => {
+    const grp = document.createElement('div');
+    grp.className = 'set-group';
+
     const btn = document.createElement('button');
     btn.className = 'set-btn' + (name === activeSet ? ' active' : '');
     btn.textContent = name;
     btn.onclick = () => switchSet(name);
-    bar.appendChild(btn);
+    grp.appendChild(btn);
+
+    const sub = document.createElement('div');
+    sub.className = 'set-sub';
+
+    const doneCount = (doneTodosPerSet[name] || []).length;
+    const doneBtn = document.createElement('button');
+    doneBtn.className = 'set-sub-btn set-sub-done';
+    doneBtn.title = 'Erledigte anzeigen';
+    doneBtn.textContent = '✓ ' + doneCount;
+    doneBtn.onclick = () => {
+      if (name !== activeSet) switchSet(name);
+      const p = document.getElementById('done-panel');
+      p.style.display = p.style.display === 'block' ? 'none' : 'block';
+    };
+    sub.appendChild(doneBtn);
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'set-sub-btn set-sub-del';
+    delBtn.title = 'Set löschen';
+    delBtn.textContent = '×';
+    delBtn.onclick = () => deleteSet(name);
+    sub.appendChild(delBtn);
+
+    grp.appendChild(sub);
+    bar.appendChild(grp);
   });
   const newBtn = document.createElement('button');
   newBtn.className = 'set-new';
@@ -679,14 +1015,40 @@ function buildSetsBar() {
   bar.appendChild(newBtn);
 }
 
+function deleteSet(name) {
+  const allSets = Object.keys(sets);
+  if (allSets.length <= 1) { alert('Mindestens ein Set muss vorhanden sein.'); return; }
+  const ballCount = sets[name].length;
+  if (!confirm(`Set "${name}" löschen?${ballCount > 0 ? ' ' + ballCount + ' Ball/Bälle werden entfernt.' : ''}`)) return;
+  delete sets[name];
+  delete doneTodosPerSet[name];
+  if (activeSet === name) {
+    const remaining = Object.keys(sets)[0];
+    balls.forEach(b => { if (b.inWorld) Composite.remove(world, b.body); });
+    balls = []; doneTodos = [];
+    activeSet = remaining;
+    doneTodos = (doneTodosPerSet[remaining] || []).slice();
+    renderDoneList();
+    buildSetsBar();
+    const saved = sets[remaining] || [];
+    saved.forEach((todo, i) => setTimeout(() => spawnBall(todo), i * 80));
+  } else {
+    buildSetsBar();
+  }
+  saveState();
+}
+
 function switchSet(name) {
-  sets[activeSet] = balls.map(b => ({ ...b.data }));
+  sets[activeSet]         = balls.map(b => ({ ...b.data }));
+  doneTodosPerSet[activeSet] = doneTodos.slice();
   balls.forEach(b => { if (b.inWorld) Composite.remove(world, b.body); });
-  balls = [];
-  doneTodos = [];
+  balls = []; doneTodos = [];
   renderDoneList();
   activeSet = name;
+  doneTodos = (doneTodosPerSet[name] || []).slice();
   buildSetsBar();
+  renderDoneList();
+  persistState();
   const saved = sets[name] || [];
   saved.forEach((todo, i) => setTimeout(() => spawnBall(todo), i * 80));
 }
@@ -776,6 +1138,7 @@ function addTodo() {
   spawnBall({ text: disp, type, id: nextId++ });
   inp.value = '';
   inp.focus();
+  saveState();
 }
 
 document.getElementById('add-input').addEventListener('keydown', e => {
@@ -808,7 +1171,10 @@ function applyFilter() {
 
 // ─── DONE ZONES ──────────────────────────────────────────────────────────────
 const ZONE_W = 110;
-let dragState = null;
+let dragState    = null;
+let zoneEnterTime = null;
+let inZone        = false;
+let inZoneSide    = null; // 'l' | 'r'
 
 function getDragBall() {
   if (!dragState) return null;
@@ -834,48 +1200,150 @@ window.addEventListener('mousemove', e => {
 window.addEventListener('mouseup', () => {
   checkDoneRelease();
   dragState = null;
-  document.getElementById('zone-l').classList.remove('on');
-  document.getElementById('zone-r').classList.remove('on');
 });
+
+let touchStartPos  = null;
+let touchStartTime = 0;
+let pinchStartDist = null;
+let pinchStartR    = null;
 
 canvas.addEventListener('touchstart', e => {
   e.preventDefault();
+  if (e.touches.length === 2) {
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    pinchStartDist = Math.hypot(dx, dy);
+    pinchStartR    = selectedIdx >= 0 && balls[selectedIdx] ? balls[selectedIdx].r : null;
+    dragState      = null;
+    return;
+  }
   const t = e.touches[0];
   const mx = t.clientX, my = t.clientY;
+  touchStartPos  = { x: mx, y: my };
+  touchStartTime = Date.now();
   for (let i = 0; i < balls.length; i++) {
     const b = balls[i];
     if (!b.visible) continue;
     const dx = mx - b.body.position.x, dy = my - b.body.position.y;
-    if (dx*dx + dy*dy < b.r * b.r * 1.6) { dragState = { idx: i }; break; }
+    if (dx*dx + dy*dy < b.r * b.r * 2.25) { dragState = { idx: i }; break; }
   }
 }, { passive: false });
 
 canvas.addEventListener('touchmove', e => {
   e.preventDefault();
+  if (e.touches.length === 2 && pinchStartDist !== null && selectedIdx >= 0 && pinchStartR !== null) {
+    const dx   = e.touches[0].clientX - e.touches[1].clientX;
+    const dy   = e.touches[0].clientY - e.touches[1].clientY;
+    const dist = Math.hypot(dx, dy);
+    resizeBall(selectedIdx, Math.round(pinchStartR * dist / pinchStartDist));
+    return;
+  }
+  const t = e.touches[0];
+  if (dragState) {
+    const ball = getDragBall();
+    if (ball && ball.visible) {
+      Body.setPosition(ball.body, { x: t.clientX, y: t.clientY });
+      Body.setVelocity(ball.body, { x: 0, y: 0 });
+    }
+  }
   updateZones();
 }, { passive: false });
 
 canvas.addEventListener('touchend', e => {
   e.preventDefault();
-  checkDoneRelease();
-  dragState = null;
+  if (pinchStartDist !== null && e.touches.length < 2) {
+    pinchStartDist = null;
+    pinchStartR    = null;
+    return;
+  }
+  const tc    = e.changedTouches[0];
+  const isTap = touchStartPos && tc &&
+    Date.now() - touchStartTime < 250 &&
+    Math.hypot(tc.clientX - touchStartPos.x, tc.clientY - touchStartPos.y) < 14;
+
+  if (isTap) {
+    const tx = tc.clientX, ty = tc.clientY;
+    let found = -1;
+    for (let i = balls.length - 1; i >= 0; i--) {
+      const b = balls[i];
+      if (!b.visible) continue;
+      const dx = tx - b.body.position.x, dy = ty - b.body.position.y;
+      if (dx*dx + dy*dy < b.r * b.r * 1.8) { found = i; break; }
+    }
+    selectedIdx = found === selectedIdx ? -1 : found;
+  } else {
+    checkDoneRelease();
+  }
+
+  dragState     = null;
+  touchStartPos = null;
+}, { passive: false });
+
+function setZoneProgress(progress, side) {
+  const zone = document.getElementById('zone-' + side);
+  if (!zone) return;
+  const textEl = zone.querySelector('.zone-text');
+  const tickEl = zone.querySelector('.zone-tick');
+  const ringEl = zone.querySelector('.zone-ring');
+  if (progress <= 0) {
+    textEl.textContent = 'Erledigt';
+    tickEl.textContent = '✓';
+    ringEl.style.borderColor = '';
+    ringEl.style.boxShadow   = '';
+  } else if (progress >= 1) {
+    textEl.textContent = 'Loslassen!';
+    tickEl.textContent = '✓';
+    ringEl.style.borderColor = 'var(--zone-check)';
+    ringEl.style.boxShadow   = '0 0 28px var(--zone-glow)';
+  } else {
+    const secs = Math.ceil(3 * (1 - progress));
+    textEl.textContent = secs + 's halten';
+    tickEl.textContent = secs;
+    const a = (0.35 + progress * 0.55).toFixed(2);
+    ringEl.style.borderColor = `rgba(70,210,120,${a})`;
+    ringEl.style.boxShadow   = '';
+  }
+}
+
+function resetZoneState() {
+  if (inZoneSide) { setZoneProgress(0, inZoneSide); }
+  inZone = false; zoneEnterTime = null; inZoneSide = null;
   document.getElementById('zone-l').classList.remove('on');
   document.getElementById('zone-r').classList.remove('on');
-}, { passive: false });
+}
 
 function updateZones() {
   const ball = getDragBall();
-  if (!ball || !ball.visible) return;
+  if (!ball || !ball.visible) {
+    if (inZone) resetZoneState();
+    return;
+  }
   const bx = ball.body.position.x;
+  const nowInZone = bx < ZONE_W || bx > W - ZONE_W;
+  const side = bx < ZONE_W ? 'l' : 'r';
+
+  if (nowInZone && !inZone) {
+    zoneEnterTime = Date.now(); inZone = true; inZoneSide = side;
+  } else if (nowInZone && inZone && side !== inZoneSide) {
+    setZoneProgress(0, inZoneSide);
+    zoneEnterTime = Date.now(); inZoneSide = side;
+  } else if (!nowInZone && inZone) {
+    resetZoneState();
+  }
+
   document.getElementById('zone-l').classList.toggle('on', bx < ZONE_W);
   document.getElementById('zone-r').classList.toggle('on', bx > W - ZONE_W);
 }
 
 function checkDoneRelease() {
   const ball = getDragBall();
-  if (!ball || !ball.visible) return;
-  const bx = ball.body.position.x;
-  if (bx < ZONE_W || bx > W - ZONE_W) markDone(dragState.idx);
+  if (ball && ball.visible) {
+    const bx = ball.body.position.x;
+    if ((bx < ZONE_W || bx > W - ZONE_W) && zoneEnterTime && Date.now() - zoneEnterTime >= 3000) {
+      markDone(dragState.idx);
+    }
+  }
+  resetZoneState();
 }
 
 function markDone(idx) {
@@ -890,6 +1358,8 @@ function markDone(idx) {
   else if (selectedIdx > idx)  selectedIdx--;
   dragState = null;
   renderDoneList();
+  buildSetsBar();
+  saveState();
 }
 
 function renderDoneList() {
@@ -907,9 +1377,98 @@ function renderDoneList() {
   }).join('');
 }
 
+// ─── CONTEXT MENU (Rechtsklick → Liste / Set wechseln) ───────────────────────
+function showCtxMenu(ballIdx, x, y) {
+  const menu = document.getElementById('ctx-menu');
+  const ball = balls[ballIdx];
+
+  // Left column: categories
+  let catCol = '<div class="ctx-col"><div class="ctx-title">Liste</div>';
+  catCol += categories.map(c => {
+    const isCurrent = ball.data.type === c.id;
+    return `<div class="ctx-item${isCurrent ? ' current' : ''}" data-action="cat" data-id="${c.id}">
+      <span class="ctx-dot" style="background:${getBallColor(c.id)}"></span>
+      ${c.name}${isCurrent ? ' ✓' : ''}
+    </div>`;
+  }).join('');
+  catCol += '</div>';
+
+  // Right column: sets
+  const setNames = Object.keys(sets);
+  let setCol = '<div class="ctx-col"><div class="ctx-title">Set</div>';
+  setCol += setNames.map(s => {
+    const isCurrent = s === activeSet;
+    return `<div class="ctx-item${isCurrent ? ' current' : ''}" data-action="set" data-set="${encodeURIComponent(s)}">
+      <span style="font-size:9px;color:var(--text-dim);flex-shrink:0">→</span>
+      ${s}${isCurrent ? ' ✓' : ''}
+    </div>`;
+  }).join('');
+  setCol += '</div>';
+
+  menu.innerHTML = `<div class="ctx-cols">${catCol}${setCol}</div>`;
+
+  // Event listeners (avoids inline-onclick escaping issues)
+  menu.querySelectorAll('[data-action="cat"]').forEach(el => {
+    const catId = el.dataset.id;
+    if (ball.data.type === catId) return;
+    el.onclick = () => { moveBallToCat(ballIdx, catId); hideCtxMenu(); };
+  });
+  menu.querySelectorAll('[data-action="set"]').forEach(el => {
+    const target = decodeURIComponent(el.dataset.set);
+    if (target === activeSet) return;
+    el.onclick = () => { moveBallToSet(ballIdx, target); hideCtxMenu(); };
+  });
+
+  const mw = 300, mh = Math.max(categories.length, setNames.length) * 34 + 50;
+  menu.style.left = Math.min(x, window.innerWidth  - mw - 10) + 'px';
+  menu.style.top  = Math.min(y, window.innerHeight - mh - 10) + 'px';
+  menu.style.display = 'block';
+}
+
+function hideCtxMenu() {
+  document.getElementById('ctx-menu').style.display = 'none';
+}
+
+function moveBallToCat(ballIdx, catId) {
+  if (ballIdx < 0 || ballIdx >= balls.length) return;
+  balls[ballIdx].data.type = catId;
+  saveState();
+}
+
+function moveBallToSet(ballIdx, targetSet) {
+  if (ballIdx < 0 || ballIdx >= balls.length) return;
+  if (sets[targetSet] === undefined) return;
+  const ball = balls[ballIdx];
+  if (!doneTodosPerSet[targetSet]) doneTodosPerSet[targetSet] = [];
+  sets[targetSet].push({ ...ball.data });
+  if (ball.inWorld) Composite.remove(world, ball.body);
+  balls.splice(ballIdx, 1);
+  if (selectedIdx === ballIdx)      selectedIdx = -1;
+  else if (selectedIdx > ballIdx)   selectedIdx--;
+  buildSetsBar();
+  saveState();
+}
+
+canvas.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  const mx = e.clientX, my = e.clientY;
+  for (let i = balls.length - 1; i >= 0; i--) {
+    const b = balls[i];
+    if (!b.visible) continue;
+    const dx = mx - b.body.position.x, dy = my - b.body.position.y;
+    if (dx*dx + dy*dy < b.r*b.r) { showCtxMenu(i, mx, my); return; }
+  }
+  hideCtxMenu();
+});
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('#ctx-menu')) hideCtxMenu();
+});
+
 // ─── DOUBLE CLICK DELETE ──────────────────────────────────────────────────────
 canvas.addEventListener('dblclick', e => {
   const mx = e.clientX, my = e.clientY;
+  let deleted = false;
   for (let i = balls.length - 1; i >= 0; i--) {
     const b = balls[i];
     if (!b.visible) continue;
@@ -919,9 +1478,11 @@ canvas.addEventListener('dblclick', e => {
       balls.splice(i, 1);
       if (selectedIdx === i)     selectedIdx = -1;
       else if (selectedIdx > i)  selectedIdx--;
+      deleted = true;
       break;
     }
   }
+  if (deleted) saveState();
 });
 
 // ─── HOVER + SELECT ───────────────────────────────────────────────────────────
@@ -954,13 +1515,12 @@ canvas.addEventListener('click', () => {
   selectedIdx = hoveredIdx === selectedIdx ? -1 : hoveredIdx;
 });
 
-// ─── SCROLL TO RESIZE ────────────────────────────────────────────────────────
-canvas.addEventListener('wheel', e => {
-  e.preventDefault();
-  if (selectedIdx < 0 || selectedIdx >= balls.length) return;
-  const ball  = balls[selectedIdx];
-  const newR  = Math.max(20, Math.min(120, ball.r + (e.deltaY > 0 ? -4 : 4)));
-  if (newR === ball.r) return;
+// ─── RESIZE HELPER ───────────────────────────────────────────────────────────
+function resizeBall(idx, newR) {
+  if (idx < 0 || idx >= balls.length) return;
+  const ball = balls[idx];
+  newR = Math.max(20, Math.min(120, newR));
+  if (Math.abs(newR - ball.r) < 2) return;
   const pos = ball.body.position, vel = ball.body.velocity;
   Composite.remove(world, ball.body);
   const nb = Bodies.circle(pos.x, pos.y, newR, {
@@ -971,6 +1531,13 @@ canvas.addEventListener('wheel', e => {
   Composite.add(world, nb);
   ball.body = nb; ball.r = newR;
   mc.body = null;
+}
+
+// ─── SCROLL TO RESIZE ────────────────────────────────────────────────────────
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  if (selectedIdx < 0) return;
+  resizeBall(selectedIdx, balls[selectedIdx].r + (e.deltaY > 0 ? -4 : 4));
 }, { passive: false });
 
 // ─── CONTAINMENT (horizontal nudge only — vertical free) ─────────────────────
@@ -1050,16 +1617,20 @@ function speedEllipse(cx, cy, rx, ry, rot, lineRc, baseAlpha, phaseShift) {
 }
 
 // Moving spark: glow halo + bright core + long fading trail
-function ellipseSpark(cx, cy, rx, ry, rot, sparkT, lineRc) {
+function ellipseSpark(cx, cy, rx, ry, rot, sparkT, lineRc, scale = 1.0) {
+  if (scale <= 0.01) return;
   const col = `rgba(${lineRc.r},${lineRc.g},${lineRc.b},`;
   const p   = ellipseP(cx, cy, rx, ry, rot, sparkT);
   const g   = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, 4);
-  g.addColorStop(0, col + '0.70)'); g.addColorStop(0.4, col + '0.22)'); g.addColorStop(1, col + '0)');
+  g.addColorStop(0, col + (0.70*scale).toFixed(2) + ')');
+  g.addColorStop(0.4, col + (0.22*scale).toFixed(2) + ')');
+  g.addColorStop(1, col + '0)');
   ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI * 2); ctx.fillStyle = g; ctx.fill();
-  ctx.beginPath(); ctx.arc(p.x, p.y, 1.2, 0, Math.PI * 2); ctx.fillStyle = col + '0.95)'; ctx.fill();
-  for (let i = 1; i <= 8; i++) {
+  ctx.beginPath(); ctx.arc(p.x, p.y, 1.2, 0, Math.PI * 2);
+  ctx.fillStyle = col + (0.95*scale).toFixed(2) + ')'; ctx.fill();
+  for (let i = 1; i <= visCntPoints; i++) {
     const tp = ellipseP(cx, cy, rx, ry, rot, sparkT - i * 0.10);
-    const a  = 0.40 - i * 0.05;
+    const a  = (0.40 - i * 0.05) * scale;
     if (a <= 0) continue;
     ctx.beginPath(); ctx.arc(tp.x, tp.y, Math.max(0.5, 1.4 - i * 0.15), 0, Math.PI * 2);
     ctx.fillStyle = col + a.toFixed(2) + ')'; ctx.fill();
@@ -1086,10 +1657,12 @@ function drawBall(b, hovered, selected) {
         ? { r: Math.min(255,rc.r+160), g: Math.min(255,rc.g+160), b: Math.min(255,rc.b+155) }
         : { r: Math.max(0,rc.r-80),    g: Math.max(0,rc.g-80),    b: Math.max(0,rc.b-80) })
     : rc;
+  const drawLrc = visWhiteLines ? { r:255, g:255, b:255 } : lrc;
   // Line color outside ball — contrast against background
   const orc = lightBg
     ? { r: Math.max(0,rc.r-30), g: Math.max(0,rc.g-30), b: Math.max(0,rc.b-30) }
     : rc;
+  const drawOrc = visWhiteLines ? { r:255, g:255, b:255 } : orc;
 
   // 1. Hover/select glow (starts at edge, no fill inside)
   if (hovered || selected) {
@@ -1144,18 +1717,20 @@ function drawBall(b, hovered, selected) {
     { rx: r*.17, ry: r*.97, rot: -Math.PI/3.4,  cy: y,       spd: .78 },
     { rx: r*.17, ry: r*.97, rot: Math.PI/1.55,  cy: y,       spd: 1.38 },
   ];
-  const baseE = lightBg
-    ? (r < 45 ? 2 : r < 62 ? 3 : 5)
-    : (r < 45 ? 3 : r < 62 ? 5 : 8);
-  const maxE = Math.max(1, Math.round(baseE * visDensity));
+  // ELPS[0-6] = latitude (↔), ELPS[7-11] = longitude (↕)
+  const latSlice = ELPS.slice(0, Math.min(visCntInLat, 7));
+  const lonSlice = ELPS.slice(7, 7 + Math.min(visCntInLon, 5));
+  const innerElps = latSlice.map((e, i) => ({ e, i, isLon: false }))
+    .concat(lonSlice.map((e, i) => ({ e, i: i + 7, isLon: true })));
 
   ctx.save();
   ctx.beginPath(); ctx.arc(x, y, r-0.5, 0, Math.PI*2); ctx.clip();
-  ELPS.slice(0, maxE).forEach((e, i) => {
-    const hs   = lightBg && i >= Math.floor(maxE * 2 / 3);
-    const sm   = (hs ? 3.8 : 1.1) * visSpeed;
-    speedEllipse(x, e.cy, e.rx, e.ry, e.rot, lrc, hA * visIntensity, bp + i*1.2 + animTime*e.spd*sm);
-    ellipseSpark (x, e.cy, e.rx, e.ry, e.rot, animTime*e.spd*sm*1.3 + bp + i*.9, lrc);
+  innerElps.forEach(({ e, i, isLon }) => {
+    const sm        = (isLon ? 3.8 : 1.1) * visSpeed;
+    const lineAlpha = hA * (isLon ? visInnerLon : visInnerLat);
+    if (lineAlpha > 0.01)
+      speedEllipse(x, e.cy, e.rx, e.ry, e.rot, drawLrc, lineAlpha, bp + i*1.2 + animTime*e.spd*sm);
+    ellipseSpark (x, e.cy, e.rx, e.ry, e.rot, animTime*e.spd*sm*1.3 + bp + i*.9, drawLrc, visPoints);
   });
   ctx.restore();
 
@@ -1166,61 +1741,69 @@ function drawBall(b, hovered, selected) {
   ctx.arc(x, y, r+1, 0, Math.PI*2, true);
   ctx.clip('evenodd');
 
-  function ringLines(orRx, orRy, rot, tSpd, baseA, pulseA) {
+  function ringLines(orRx, orRy, rot, tSpd, baseA, pulseA, scale = 1.0) {
+    if (scale <= 0.01) return;
     const cr = Math.cos(rot), sr = Math.sin(rot), N = 72;
     for (let i = 0; i < N; i++) {
       const t0 = (i/N)*Math.PI*2, t1 = ((i+1)/N)*Math.PI*2;
       const pulse = Math.pow(Math.max(0, Math.sin(t0*2.2 + bp + animTime*tSpd)), 5);
-      const lw = .10 + pulse*1.4, alpha = baseA + pulse*pulseA;
+      const lw = .10 + pulse*1.4, alpha = (baseA + pulse*pulseA) * scale;
       if (alpha < .025) continue;
       const x0 = x+Math.cos(t0)*orRx*cr-Math.sin(t0)*orRy*sr;
       const y0 = y+Math.cos(t0)*orRx*sr+Math.sin(t0)*orRy*cr;
       const x1 = x+Math.cos(t1)*orRx*cr-Math.sin(t1)*orRy*sr;
       const y1 = y+Math.cos(t1)*orRx*sr+Math.sin(t1)*orRy*cr;
       ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(x1,y1);
-      ctx.strokeStyle = `rgba(${orc.r},${orc.g},${orc.b},${alpha.toFixed(2)})`;
+      ctx.strokeStyle = `rgba(${drawOrc.r},${drawOrc.g},${drawOrc.b},${alpha.toFixed(2)})`;
       ctx.lineWidth = lw; ctx.stroke();
     }
   }
-  function outerRingSpark(orRx, orRy, rot, tSpd) {
+  function outerRingSpark(orRx, orRy, rot, tSpd, scale = 1.0) {
+    if (scale <= 0.01) return;
     const cr = Math.cos(rot), sr = Math.sin(rot);
     const sT = animTime*tSpd + bp;
     const sx = x+Math.cos(sT)*orRx*cr-Math.sin(sT)*orRy*sr;
     const sy = y+Math.cos(sT)*orRx*sr+Math.sin(sT)*orRy*cr;
     const sg = ctx.createRadialGradient(sx,sy,0,sx,sy,3.5);
-    sg.addColorStop(0,`rgba(${orc.r},${orc.g},${orc.b},.75)`);
-    sg.addColorStop(1,`rgba(${orc.r},${orc.g},${orc.b},0)`);
+    sg.addColorStop(0,`rgba(${drawOrc.r},${drawOrc.g},${drawOrc.b},${(.75*scale).toFixed(2)})`);
+    sg.addColorStop(1,`rgba(${drawOrc.r},${drawOrc.g},${drawOrc.b},0)`);
     ctx.beginPath(); ctx.arc(sx,sy,3.5,0,Math.PI*2); ctx.fillStyle=sg; ctx.fill();
     ctx.beginPath(); ctx.arc(sx,sy,1.1,0,Math.PI*2);
-    ctx.fillStyle=`rgba(${orc.r},${orc.g},${orc.b},.90)`; ctx.fill();
+    ctx.fillStyle=`rgba(${drawOrc.r},${drawOrc.g},${drawOrc.b},${(.90*scale).toFixed(2)})`; ctx.fill();
   }
 
-  // 2 equatorial (normal + highspeed)
-  ringLines(r+6,  r+6,  0, .60*visSpeed, .11, .50*visIntensity); outerRingSpark(r+6,  r+6,  0, .60*visSpeed);
-  ringLines(r+14, r+14, 0, 3.6*visSpeed, .07, .38*visIntensity); outerRingSpark(r+14, r+14, 0, 3.6*visSpeed);
-
-  // 4 longitudinal ring lines (2 normal, 2 highspeed)
-  const LON = [
-    [r*.18, r*1.40, 0,           .55*visSpeed, .10, .44*visIntensity],
-    [r*.18, r*1.40, Math.PI/2.8, 3.8*visSpeed, .08, .40*visIntensity],
-    [r*.18, r*1.40, Math.PI/1.7, 3.5*visSpeed, .09, .42*visIntensity],
+  // 2 equatorial (visCntOutLat: 0=none, 1=slow ring, 2=both)
+  const EQ = [
+    [r+6,  r+6,  0, .60*visSpeed, .11, .50],
+    [r+14, r+14, 0, 3.6*visSpeed, .07, .38],
   ];
-  LON.forEach(a => ringLines(...a));
+  EQ.slice(0, visCntOutLat).forEach(([rx, ry, rot, ts, ba, pa]) => {
+    ringLines(rx, ry, rot, ts, ba, pa, visOuterLat);
+    outerRingSpark(rx, ry, rot, ts, visPoints);
+  });
+
+  // 3 longitudinal ring lines (visCntOutLon: 0-3)
+  const LON = [
+    [r*.18, r*1.40, 0,           .55*visSpeed, .10, .44, visOuterLon],
+    [r*.18, r*1.40, Math.PI/2.8, 3.8*visSpeed, .08, .40, visOuterLon],
+    [r*.18, r*1.40, Math.PI/1.7, 3.5*visSpeed, .09, .42, visOuterLon],
+  ];
+  LON.slice(0, visCntOutLon).forEach(a => ringLines(...a));
 
   ctx.restore(); // end outside-clip
 
   // Longitudinal sparks — no clip, travel fully over text
-  LON.forEach(([orRx, orRy, rot, tSpd]) => {
+  if (visPoints > 0.01) LON.forEach(([orRx, orRy, rot, tSpd]) => {
     const cr = Math.cos(rot), sr = Math.sin(rot);
     const sT = animTime*tSpd + bp;
     const sx = x+Math.cos(sT)*orRx*cr-Math.sin(sT)*orRy*sr;
     const sy = y+Math.cos(sT)*orRx*sr+Math.sin(sT)*orRy*cr;
     const sg = ctx.createRadialGradient(sx,sy,0,sx,sy,3.2);
-    sg.addColorStop(0,`rgba(${orc.r},${orc.g},${orc.b},.78)`);
-    sg.addColorStop(1,`rgba(${orc.r},${orc.g},${orc.b},0)`);
+    sg.addColorStop(0,`rgba(${drawOrc.r},${drawOrc.g},${drawOrc.b},${(.78*visPoints).toFixed(2)})`);
+    sg.addColorStop(1,`rgba(${drawOrc.r},${drawOrc.g},${drawOrc.b},0)`);
     ctx.beginPath(); ctx.arc(sx,sy,3.2,0,Math.PI*2); ctx.fillStyle=sg; ctx.fill();
     ctx.beginPath(); ctx.arc(sx,sy,1.0,0,Math.PI*2);
-    ctx.fillStyle=`rgba(${orc.r},${orc.g},${orc.b},.92)`; ctx.fill();
+    ctx.fillStyle=`rgba(${drawOrc.r},${drawOrc.g},${drawOrc.b},${(.92*visPoints).toFixed(2)})`; ctx.fill();
   });
 
   // 7. Rim light
@@ -1251,23 +1834,139 @@ function drawBall(b, hovered, selected) {
     ctx.lineWidth = 1; ctx.setLineDash([4,6]); ctx.stroke(); ctx.setLineDash([]);
   }
 
-  // 11. Text — smile arc parabola
-  const lines = b.data.text.split('\n');
-  const fs    = Math.max(9, r * 0.24);
-  ctx.font = `600 ${fs}px Syne, sans-serif`;
-  ctx.fillStyle = lightBg ? 'rgba(255,255,255,.82)' : Th.ballText;
+  // 11. Text — equator-wrap when resting, flat when clearly lifted
+  const spd = b.body.speed;
+  b._wf = b._wf ?? 0;
+  // Asymmetric: engage slowly (sustained rest needed), disengage fast on any movement
+  if (spd < 3.5) b._wf += (1 - b._wf) * 0.066;  // engage ~0.23s of rest (3× faster)
+  else           b._wf += (0 - b._wf) * 0.66;    // disengage ~3 frames (3× faster)
+  const wf = r < 50 ? 0 : b._wf;
+
+  const textCol = lightBg ? 'rgba(255,255,255,.82)' : Th.ballText;
+  const fs      = Math.max(7, r * 0.27);
+  ctx.font         = `600 ${fs}px Syne, sans-serif`;
   ctx.textAlign    = 'center';
   ctx.textBaseline = 'middle';
-  const lh = fs * 1.28;
-  lines.forEach((line, li) => {
-    ctx.fillText(line, x, y + (li - (lines.length-1)/2) * lh);
-  });
+  ctx.fillStyle    = textCol;
+
+  // For wrap: use longest line only (multiline text stays readable)
+  const allLines  = b.data.text.split('\n');
+  const wrapLine  = allLines.reduce((a, l) => l.length > a.length ? l : a, '');
+  const charWs    = wrapLine.split('').map(ch => ctx.measureText(ch).width);
+  const totalW    = charWs.reduce((a, w) => a + w, 0);
+  // Only wrap if text fits reasonably — fall back to flat for very long text on small balls
+  const canWrap   = wf > 0.38 && totalW < r * 2.8;
+
+  if (!canWrap) {
+    // Flat
+    const lh    = fs * 1.28;
+    const maxTW = r * 1.65;
+    allLines.forEach((line, li) =>
+      ctx.fillText(line, x, y + (li - (allLines.length-1)/2) * lh, maxTW));
+  } else {
+    // Text stands upright ON the ELPS[0] disc — appears to float inside the sphere
+    const spread   = (wf - 0.38) / 0.62;
+    const chars    = wrapLine.split('');
+    const eRx      = r * 0.97;   // ELPS[0] rx  — disc width
+    const eRy      = r * 0.19;   // ELPS[0] ry  — disc foreshortening
+    const discAR   = eRy / eRx;  // ≈ 0.196 — shadow squish ratio
+
+    const maxArc   = Math.min(1.45, totalW / eRx);
+    const curArc   = maxArc * spread;
+
+    // Helper: x-position + perspective scale for arc param s
+    const charPos = (posX) => {
+      const s      = totalW > 0 ? (posX / totalW) * curArc : 0;
+      const sx     = x + eRx * Math.sin(s);
+      const xScale = Math.max(0.28, Math.cos(s));
+      const alpha  = Math.max(0.25, Math.cos(s));
+      return { s, sx, xScale, alpha };
+    };
+
+    // Text baseline ON the ellipse → body extends upward
+    // textBaseline='middle' so center = baseline - fs/2 = ellipseY - fs/2
+    const baseY  = y + eRy * (1 + vis3dLift);  // 0=on ellipse front, ±lift shifts up/down
+    const lw     = Math.max(0.4, fs * vis3dStroke);
+
+    // Shared per-character geometry
+    const geom = (posX) => {
+      const s        = totalW > 0 ? (posX / totalW) * curArc : 0;
+      const sx       = x + eRx * Math.sin(s);
+      const xScale   = Math.max(0.28, Math.cos(s));
+      const alpha    = Math.max(0.25, Math.cos(s));
+      const charY    = baseY - eRy * (1 - Math.cos(s)) * vis3dArch; // wölbung
+      const angle    = Math.atan2(-eRy * Math.sin(s), eRx * Math.cos(s)) * vis3dTilt;
+      return { sx, xScale, alpha, charY, angle };
+    };
+
+    ctx.textBaseline = 'alphabetic';
+
+    // Pass 1 — shadow on disc
+    let cur = 0;
+    chars.forEach((ch, i) => {
+      const posX = cur + charWs[i] / 2 - totalW / 2; cur += charWs[i];
+      const { sx, xScale, alpha, charY } = geom(posX);
+      const sAlpha = alpha * vis3dShadow * spread;
+      if (sAlpha < 0.02) return;
+      ctx.save();
+      ctx.translate(sx, charY + fs * vis3dShadowDist);
+      ctx.scale(xScale * 1.05, vis3dDisc);
+      ctx.globalAlpha = sAlpha;
+      ctx.fillStyle   = 'rgba(0,0,0,0.9)';
+      ctx.fillText(ch, 0, 0);
+      ctx.restore();
+    });
+
+    // Pass 2 — glow halo (optional, drawn before stroke)
+    if (vis3dGlow > 0.01) {
+      cur = 0;
+      ctx.shadowBlur  = fs * vis3dGlow * 2;
+      ctx.shadowColor = textCol;
+      chars.forEach((ch, i) => {
+        const posX = cur + charWs[i] / 2 - totalW / 2; cur += charWs[i];
+        const { sx, xScale, alpha, charY, angle } = geom(posX);
+        ctx.save();
+        ctx.translate(sx, charY);
+        ctx.rotate(angle);
+        ctx.scale(xScale, 1.0);
+        ctx.globalAlpha = alpha * vis3dGlow * 0.5;
+        ctx.strokeStyle = textCol;
+        ctx.lineWidth   = lw / xScale * 3;
+        ctx.lineJoin    = 'round';
+        ctx.strokeText(ch, 0, 0);
+        ctx.restore();
+      });
+      ctx.shadowBlur = 0;
+    }
+
+    // Pass 3 — outline + fill
+    cur = 0;
+    chars.forEach((ch, i) => {
+      const posX = cur + charWs[i] / 2 - totalW / 2; cur += charWs[i];
+      const { sx, xScale, alpha, charY, angle } = geom(posX);
+      ctx.save();
+      ctx.translate(sx, charY);
+      ctx.rotate(angle);
+      ctx.scale(xScale, 1.0);
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle   = `rgba(255,255,255,${vis3dFill.toFixed(2)})`;
+      ctx.fillText(ch, 0, 0);
+      ctx.strokeStyle = textCol;
+      ctx.lineWidth   = lw / xScale;
+      ctx.lineJoin    = 'round';
+      ctx.strokeText(ch, 0, 0);
+      ctx.restore();
+    });
+
+    ctx.globalAlpha  = 1;
+    ctx.textBaseline = 'middle';
+  }
 
   // 12. Node dot
   ctx.beginPath(); ctx.arc(x+r*0.63, y-r*0.63, 3.2, 0, Math.PI*2);
-  ctx.fillStyle = `rgba(${lrc.r},${lrc.g},${lrc.b},0.72)`; ctx.fill();
+  ctx.fillStyle = `rgba(${drawLrc.r},${drawLrc.g},${drawLrc.b},0.72)`; ctx.fill();
   ctx.beginPath(); ctx.arc(x+r*0.63, y-r*0.63, 5.2, 0, Math.PI*2);
-  ctx.strokeStyle = `rgba(${lrc.r},${lrc.g},${lrc.b},0.25)`;
+  ctx.strokeStyle = `rgba(${drawLrc.r},${drawLrc.g},${drawLrc.b},0.25)`;
   ctx.lineWidth = 1; ctx.stroke();
 }
 
@@ -1343,6 +2042,12 @@ function drawFrame() {
   ctx.textBaseline = 'top';
   const shown = vis.length, total = balls.length;
   ctx.fillText(activeFilter === 'all' ? `${total} offen` : `${shown} / ${total} offen`, 36, 108);
+
+  // Zone countdown progress (updates HTML badge every frame)
+  if (inZone && zoneEnterTime && getDragBall()) {
+    const progress = Math.min(1, (Date.now() - zoneEnterTime) / 3000);
+    setZoneProgress(progress, inZoneSide);
+  }
 }
 
 // ─── RESIZE ───────────────────────────────────────────────────────────────────
@@ -1355,11 +2060,17 @@ window.addEventListener('resize', () => {
 });
 
 // ─── INIT ────────────────────────────────────────────────────────────────────
+const _stateLoaded = loadState();
 rebuildCatBar();
 buildSetsBar();
 buildPaletteRow();
 drawFrame();
-INITIAL.forEach((t, i) => setTimeout(() => spawnBall({ ...t, id: i + 1 }), i * 100));
+if (!_stateLoaded) {
+  INITIAL.forEach((t, i) => setTimeout(() => spawnBall({ ...t, id: i + 1 }), i * 100));
+} else {
+  const _initTodos = sets[activeSet] || [];
+  _initTodos.forEach((todo, i) => setTimeout(() => spawnBall(todo), i * 80));
+}
 </script>
 </body>
 </html>
