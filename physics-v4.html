@@ -1235,6 +1235,9 @@ let touchStartPos  = null;
 let touchStartTime = 0;
 let pinchStartDist = null;
 let pinchStartR    = null;
+let dragVel        = null;
+let lastTouchPos   = null;
+let lastTouchTime  = 0;
 
 canvas.addEventListener('touchstart', e => {
   e.preventDefault();
@@ -1268,9 +1271,19 @@ canvas.addEventListener('touchmove', e => {
     return;
   }
   const t = e.touches[0];
+  const now = Date.now();
   if (dragState) {
     const ball = getDragBall();
     if (ball && ball.visible) {
+      if (lastTouchPos && now - lastTouchTime < 80) {
+        const dt = Math.max(1, now - lastTouchTime);
+        dragVel = {
+          x: (t.clientX - lastTouchPos.x) / dt * 16,
+          y: (t.clientY - lastTouchPos.y) / dt * 16,
+        };
+      }
+      lastTouchPos  = { x: t.clientX, y: t.clientY };
+      lastTouchTime = now;
       Body.setPosition(ball.body, { x: t.clientX, y: t.clientY });
       Body.setVelocity(ball.body, { x: 0, y: 0 });
     }
@@ -1289,6 +1302,14 @@ canvas.addEventListener('touchend', e => {
   const isTap = touchStartPos && tc &&
     Date.now() - touchStartTime < 250 &&
     Math.hypot(tc.clientX - touchStartPos.x, tc.clientY - touchStartPos.y) < 14;
+
+  if (!isTap && dragState) {
+    const ball = getDragBall();
+    if (ball && ball.visible && dragVel) {
+      Body.setVelocity(ball.body, dragVel);
+    }
+  }
+  dragVel = null; lastTouchPos = null; lastTouchTime = 0;
 
   if (isTap) {
     const tx = tc.clientX, ty = tc.clientY;
@@ -2080,13 +2101,16 @@ function drawFrame() {
 }
 
 // ─── RESIZE ───────────────────────────────────────────────────────────────────
-window.addEventListener('resize', () => {
+function doResize() {
   W = window.innerWidth; H = window.innerHeight - 76;
   canvas.width = W; canvas.height = H;
   walls.forEach(w => Composite.remove(world, w));
   walls = buildWalls();
   Composite.add(world, walls);
-});
+}
+window.addEventListener('resize', doResize);
+// orientationchange fires before iOS updates dimensions — delay slightly
+window.addEventListener('orientationchange', () => setTimeout(doResize, 200));
 
 // ─── INIT ────────────────────────────────────────────────────────────────────
 const _stateLoaded = loadState();
