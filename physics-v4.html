@@ -1235,9 +1235,7 @@ let touchStartPos  = null;
 let touchStartTime = 0;
 let pinchStartDist = null;
 let pinchStartR    = null;
-let dragVel        = null;
-let lastTouchPos   = null;
-let lastTouchTime  = 0;
+let touchHistory   = [];   // [{x,y,t}] ring buffer for throw velocity
 
 canvas.addEventListener('touchstart', e => {
   e.preventDefault();
@@ -1246,18 +1244,27 @@ canvas.addEventListener('touchstart', e => {
     const dy = e.touches[0].clientY - e.touches[1].clientY;
     pinchStartDist = Math.hypot(dx, dy);
     pinchStartR    = selectedIdx >= 0 && balls[selectedIdx] ? balls[selectedIdx].r : null;
-    dragState      = null;
+    // Unfreeze any dragged ball before switching to pinch
+    const db = getDragBall();
+    if (db) Body.setStatic(db.body, false);
+    dragState    = null;
+    touchHistory = [];
     return;
   }
   const t = e.touches[0];
   const mx = t.clientX, my = t.clientY;
   touchStartPos  = { x: mx, y: my };
   touchStartTime = Date.now();
+  touchHistory   = [];
   for (let i = 0; i < balls.length; i++) {
     const b = balls[i];
     if (!b.visible) continue;
     const dx = mx - b.body.position.x, dy = my - b.body.position.y;
-    if (dx*dx + dy*dy < b.r * b.r * 2.25) { dragState = { idx: i }; break; }
+    if (dx*dx + dy*dy < b.r * b.r * 2.25) {
+      dragState = { idx: i };
+      Body.setStatic(b.body, true);   // freeze during drag → smooth follow
+      break;
+    }
   }
 }, { passive: false });
 
@@ -1275,17 +1282,10 @@ canvas.addEventListener('touchmove', e => {
   if (dragState) {
     const ball = getDragBall();
     if (ball && ball.visible) {
-      if (lastTouchPos && now - lastTouchTime < 80) {
-        const dt = Math.max(1, now - lastTouchTime);
-        dragVel = {
-          x: (t.clientX - lastTouchPos.x) / dt * 16,
-          y: (t.clientY - lastTouchPos.y) / dt * 16,
-        };
-      }
-      lastTouchPos  = { x: t.clientX, y: t.clientY };
-      lastTouchTime = now;
+      // Ring buffer: keep last 120ms of positions for velocity averaging
+      touchHistory.push({ x: t.clientX, y: t.clientY, t: now });
+      if (touchHistory.length > 8) touchHistory.shift();
       Body.setPosition(ball.body, { x: t.clientX, y: t.clientY });
-      Body.setVelocity(ball.body, { x: 0, y: 0 });
     }
   }
   updateZones();
@@ -1303,13 +1303,24 @@ canvas.addEventListener('touchend', e => {
     Date.now() - touchStartTime < 250 &&
     Math.hypot(tc.clientX - touchStartPos.x, tc.clientY - touchStartPos.y) < 14;
 
-  if (!isTap && dragState) {
+  if (dragState) {
     const ball = getDragBall();
-    if (ball && ball.visible && dragVel) {
-      Body.setVelocity(ball.body, dragVel);
+    if (ball) {
+      Body.setStatic(ball.body, false);   // restore physics
+      if (!isTap && touchHistory.length >= 2) {
+        // Compute velocity from oldest sample still within 120ms
+        const cutoff = Date.now() - 120;
+        const old = touchHistory.find(p => p.t >= cutoff) || touchHistory[0];
+        const newest = touchHistory[touchHistory.length - 1];
+        const dt = Math.max(1, newest.t - old.t);
+        Body.setVelocity(ball.body, {
+          x: (newest.x - old.x) / dt * 16,
+          y: (newest.y - old.y) / dt * 16,
+        });
+      }
     }
   }
-  dragVel = null; lastTouchPos = null; lastTouchTime = 0;
+  touchHistory = [];
 
   if (isTap) {
     const tx = tc.clientX, ty = tc.clientY;
