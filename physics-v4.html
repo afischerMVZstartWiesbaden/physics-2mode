@@ -164,8 +164,8 @@ body.beige {
 
 /* ── Sync buttons ────────────────────────────────────────── */
 #sync-bar {
-  position: fixed; bottom: 84px; right: 36px; z-index: 23;
-  display: flex; flex-direction: column; gap: 6px; align-items: flex-end;
+  position: fixed; bottom: 128px; left: 36px; z-index: 23;
+  display: flex; flex-direction: column; gap: 6px; align-items: flex-start;
 }
 #sync-bar button, #sync-bar label {
   font-family: 'Syne Mono', monospace; font-size: 9px; letter-spacing: 0.15em;
@@ -243,7 +243,7 @@ body.beige {
 
 /* ── Done zones (left / right) ───────────────────────────── */
 .zone {
-  position: fixed; top: 0; bottom: 76px; width: 110px;
+  position: fixed; top: 0; bottom: 120px; width: 110px;
   pointer-events: none; z-index: 10;
   display: flex; align-items: center; justify-content: center;
   opacity: 0; transition: opacity 0.18s;
@@ -272,7 +272,7 @@ body.beige {
 
 /* ── Add bar ─────────────────────────────────────────────── */
 #add-bar {
-  position: fixed; bottom: 0; left: 0; right: 0; height: 76px;
+  position: fixed; bottom: 0; left: 0; right: 0; height: 120px;
   background: var(--bg);
   border-top: 1px solid var(--border);
   display: flex; align-items: center; justify-content: center; gap: 10px;
@@ -302,7 +302,7 @@ body.beige {
 
 /* ── Hint ────────────────────────────────────────────────── */
 #hint {
-  position: fixed; bottom: 84px; left: 50%; transform: translateX(-50%);
+  position: fixed; bottom: 128px; left: 50%; transform: translateX(-50%);
   font-family: 'Syne Mono', monospace; font-size: 9px;
   letter-spacing: 0.18em; text-transform: uppercase;
   color: var(--text-label); white-space: nowrap; z-index: 21; pointer-events: none;
@@ -367,15 +367,19 @@ body.beige {
 .vp-pal.active { border-color: var(--text); }
 .vp-pal-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
 
-/* ── Tooltip ─────────────────────────────────────────────── */
+/* ── Info box (fixed bottom-right) ───────────────────────── */
 #tooltip {
-  position: fixed; background: var(--panel-bg);
-  border: 1px solid var(--border); padding: 8px 12px; border-radius: 3px;
-  font-size: 11px; color: var(--text); pointer-events: none; opacity: 0;
-  transition: opacity 0.15s; font-family: 'Syne Mono', monospace;
-  max-width: 200px; z-index: 30;
+  position: fixed; bottom: 128px; right: 10px;
+  width: 260px; max-height: 160px; overflow-y: auto;
+  background: var(--panel-bg); backdrop-filter: blur(12px);
+  border: 1px solid var(--border); padding: 10px 14px; border-radius: 3px;
+  font-size: 11px; line-height: 1.65; color: var(--text);
+  pointer-events: none; opacity: 0;
+  transition: opacity 0.15s; font-family: 'Syne Mono', monospace; z-index: 30;
 }
 #tooltip.show { opacity: 1; }
+#tooltip::-webkit-scrollbar { width: 3px; }
+#tooltip::-webkit-scrollbar-thumb { background: var(--border); }
 </style>
 </head>
 <body>
@@ -1183,7 +1187,7 @@ const INITIAL = [
 ];
 
 let W = window.innerWidth;
-let H = window.innerHeight - 76;
+let H = window.innerHeight - 120;
 let nextId = 100;
 
 const canvas = document.getElementById('c');
@@ -1195,7 +1199,7 @@ const world  = engine.world;
 
 function buildWalls() {
   return [
-    Bodies.rectangle(W/2, H - 51,  W + 200, 50, { isStatic: true, label: 'wall' }),
+    Bodies.rectangle(W/2, H + 25,  W + 200, 50, { isStatic: true, label: 'wall' }),
     Bodies.rectangle(-25, H/2,      50, H * 5,   { isStatic: true, label: 'wall' }),
     Bodies.rectangle(W + 25, H/2,   50, H * 5,   { isStatic: true, label: 'wall' }),
     // NO top wall — balls fly up and return via gravity
@@ -1334,7 +1338,7 @@ canvas.addEventListener('touchstart', e => {
       const mx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
       const my = (e.touches[0].clientY + e.touches[1].clientY) / 2;
       Body.setStatic(sb.body, true);
-      Body.setPosition(sb.body, { x: mx, y: Math.min(my, H - 76 - sb.r) });
+      Body.setPosition(sb.body, { x: mx, y: Math.min(my, H - sb.r) });
     } else {
       pinchStartR = null;
     }
@@ -1376,7 +1380,7 @@ canvas.addEventListener('touchmove', e => {
       // Ring buffer: keep last 120ms of positions for velocity averaging
       touchHistory.push({ x: t.clientX, y: t.clientY, t: now });
       if (touchHistory.length > 8) touchHistory.shift();
-      Body.setPosition(ball.body, { x: t.clientX, y: Math.min(t.clientY, H - 76 - ball.r) });
+      Body.setPosition(ball.body, { x: t.clientX, y: Math.min(t.clientY, H - ball.r) });
     }
   }
   updateZones();
@@ -1418,6 +1422,7 @@ canvas.addEventListener('touchend', e => {
 
   if (isTap) {
     const tx = tc.clientX, ty = tc.clientY;
+    const now2 = Date.now();
     let found = -1;
     for (let i = balls.length - 1; i >= 0; i--) {
       const b = balls[i];
@@ -1425,30 +1430,30 @@ canvas.addEventListener('touchend', e => {
       const dx = tx - b.body.position.x, dy = ty - b.body.position.y;
       if (dx*dx + dy*dy < b.r * b.r * 1.8) { found = i; break; }
     }
-    selectedIdx = found === selectedIdx ? -1 : found;
-    // Tooltip: show on tap of resting ball with extra lines, hide otherwise
-    if (found >= 0) {
-      const fb    = balls[found];
-      const lines = fb.data.text.split('\n');
-      const isResting = (fb._wf ?? 0) > 0.38;
-      if (isResting && lines.length > 1) {
-        if (touchTipIdx === found) {
-          touchTipIdx = -1;
-          tooltip.classList.remove('show');
-        } else {
-          touchTipIdx = found;
-          tooltip.innerHTML  = lines.join('<br>');
-          tooltip.style.left = Math.min(tx + 14, window.innerWidth  - 220) + 'px';
-          tooltip.style.top  = Math.min(ty - 10, window.innerHeight - 100) + 'px';
-          tooltip.classList.add('show');
-        }
-      } else {
-        touchTipIdx = -1;
-        tooltip.classList.remove('show');
-      }
+
+    // Double-tap on same ball → delete
+    if (found >= 0 && found === lastTapBall && now2 - lastTapTime < 350) {
+      const b = balls[found];
+      if (b.inWorld) Composite.remove(world, b.body);
+      balls.splice(found, 1);
+      if (selectedIdx === found)      selectedIdx = -1;
+      else if (selectedIdx > found)   selectedIdx--;
+      lastTapBall = -1; lastTapTime = 0;
+      touchTipIdx = -1; hideTip();
+      saveState();
     } else {
-      touchTipIdx = -1;
-      tooltip.classList.remove('show');
+      lastTapBall = found; lastTapTime = now2;
+      selectedIdx = found === selectedIdx ? -1 : found;
+      // Info box: toggle on tap of resting ball with >2 words
+      if (found >= 0) {
+        const fb       = balls[found];
+        const allWords = fb.data.text.replace(/\n/g, ' ').split(/\s+/).filter(w => w);
+        const isResting = (fb._wf ?? 0) > 0.38;
+        if (isResting && allWords.length > 2) {
+          if (touchTipIdx === found) { touchTipIdx = -1; hideTip(); }
+          else { touchTipIdx = found; showTip(fb.data.text); }
+        } else { touchTipIdx = -1; hideTip(); }
+      } else { touchTipIdx = -1; hideTip(); }
     }
   } else {
     checkDoneRelease();
@@ -1664,11 +1669,28 @@ canvas.addEventListener('dblclick', e => {
   if (deleted) saveState();
 });
 
+// ─── INFO BOX ─────────────────────────────────────────────────────────────────
+const tooltip = document.getElementById('tooltip');
+
+function fmtTip(text) {
+  return text.split('\n').map(line => {
+    if (/^[-*]\s/.test(line)) return '&bull;&nbsp;' + line.slice(2).trim();
+    return line;
+  }).join('<br>');
+}
+
+function showTip(text) {
+  tooltip.innerHTML = fmtTip(text);
+  tooltip.classList.add('show');
+}
+function hideTip() { tooltip.classList.remove('show'); }
+
 // ─── HOVER + SELECT ───────────────────────────────────────────────────────────
-let hoveredIdx     = -1;
-let touchTipIdx    = -1;
+let hoveredIdx  = -1;
+let touchTipIdx = -1;
 let selectedIdx = -1;
-const tooltip   = document.getElementById('tooltip');
+let lastTapBall = -1;
+let lastTapTime = 0;
 
 canvas.addEventListener('mousemove', e => {
   const mx = e.clientX, my = e.clientY;
@@ -1681,19 +1703,13 @@ canvas.addEventListener('mousemove', e => {
   hoveredIdx = found;
   canvas.style.cursor = found >= 0 ? 'pointer' : 'default';
   if (found >= 0) {
-    const fb    = balls[found];
-    const lines = fb.data.text.split('\n');
+    const fb       = balls[found];
+    const allWords = fb.data.text.replace(/\n/g, ' ').split(/\s+/).filter(w => w);
     const isResting = (fb._wf ?? 0) > 0.38;
-    if (isResting && lines.length > 1) {
-      tooltip.innerHTML  = lines.join('<br>');
-      tooltip.style.left = (e.clientX + 14) + 'px';
-      tooltip.style.top  = (e.clientY - 10) + 'px';
-      tooltip.classList.add('show');
-    } else {
-      tooltip.classList.remove('show');
-    }
+    if (isResting && allWords.length > 2) showTip(fb.data.text);
+    else hideTip();
   } else {
-    tooltip.classList.remove('show');
+    hideTip();
   }
 });
 
@@ -2043,9 +2059,9 @@ function drawBall(b, hovered, selected) {
   ctx.textBaseline = 'middle';
   ctx.fillStyle    = textCol;
 
-  // Only show first line on ball; extra lines go to tooltip
-  const allLines  = b.data.text.split('\n');
-  const ballLine  = allLines[0];
+  // Only show first 2 words on ball; full text goes to info box
+  const allWords2 = b.data.text.replace(/\n/g, ' ').split(/\s+/).filter(w => w);
+  const ballLine  = allWords2.slice(0, 2).join(' ');
   const charWs    = ballLine.split('').map(ch => ctx.measureText(ch).width);
   const totalW    = charWs.reduce((a, w) => a + w, 0);
   // Only wrap if text fits reasonably — fall back to flat for very long text on small balls
@@ -2237,7 +2253,7 @@ function drawFrame() {
 
 // ─── RESIZE ───────────────────────────────────────────────────────────────────
 function doResize() {
-  W = window.innerWidth; H = window.innerHeight - 76;
+  W = window.innerWidth; H = window.innerHeight - 120;
   canvas.width = W; canvas.height = H;
   walls.forEach(w => Composite.remove(world, w));
   walls = buildWalls();
