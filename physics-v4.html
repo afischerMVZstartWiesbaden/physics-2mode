@@ -406,6 +406,11 @@ body.beige {
       oninput="visCntInLon=+this.value; document.getElementById('lbl-cnt-in-lon').textContent=this.value">
   </div>
   <div class="vp-row">
+    <label>↕ Spreizung <span id="lbl-lon-spread">0.70</span></label>
+    <input type="range" id="sl-lon-spread" min="0.1" max="1.2" step="0.05" value="0.70"
+      oninput="visLonSpread=+this.value; document.getElementById('lbl-lon-spread').textContent=this.value.padEnd(4,'0')">
+  </div>
+  <div class="vp-row">
     <label>Außen ↔ <span id="lbl-cnt-out-lat">2</span></label>
     <input type="range" id="sl-cnt-out-lat" min="0" max="2" step="1" value="2"
       oninput="visCntOutLat=+this.value; document.getElementById('lbl-cnt-out-lat').textContent=this.value">
@@ -416,7 +421,7 @@ body.beige {
       oninput="visCntOutLon=+this.value; document.getElementById('lbl-cnt-out-lon').textContent=this.value">
   </div>
   <div class="vp-row">
-    <label>Punkte Trail <span id="lbl-cnt-points">8</span></label>
+    <label>Punkte Anzahl <span id="lbl-cnt-points">8</span></label>
     <input type="range" id="sl-cnt-points" min="0" max="12" step="1" value="8"
       oninput="visCntPoints=+this.value; document.getElementById('lbl-cnt-points').textContent=this.value">
   </div>
@@ -591,6 +596,7 @@ const { Engine, Bodies, Body, Composite, Events, Mouse, MouseConstraint } = Matt
 // ─── VIS SETTINGS ────────────────────────────────────────────────────────────
 let visCntInLat     = 5;    // Anzahl innen  Querschnitt (0-7)
 let visCntInLon     = 2;    // Anzahl innen  Längsschnitt (0-5)
+let visLonSpread    = 0.70; // Spreizung Längsschnitt-Winkel (0.1-1.2 rad)
 let visCntOutLat    = 2;    // Anzahl außen  Querschnitt (0-2)
 let visCntOutLon    = 3;    // Anzahl außen  Längsschnitt (0-3)
 let visCntPoints    = 8;    // Punkte Trail-Anzahl (0-12)
@@ -635,7 +641,7 @@ const visPresets = {
 
 function visSave() {
   visPresets[theme] = {
-    cntInLat:visCntInLat, cntInLon:visCntInLon, cntOutLat:visCntOutLat, cntOutLon:visCntOutLon, cntPoints:visCntPoints, trailStep:visTrailStep,
+    cntInLat:visCntInLat, cntInLon:visCntInLon, lonSpread:visLonSpread, cntOutLat:visCntOutLat, cntOutLon:visCntOutLon, cntPoints:visCntPoints, trailStep:visTrailStep,
     speed:visSpeed, innerLat:visInnerLat, innerLon:visInnerLon, outerLat:visOuterLat, outerLon:visOuterLon, points:visPoints,
     whiteLines:visWhiteLines, textBlack:visTextBlack, invert:visInvert,
     s3stroke:vis3dStroke, s3fill:vis3dFill, s3glow:vis3dGlow,
@@ -649,6 +655,7 @@ function visLoad(t) {
   const p = visPresets[t];
   visCntInLat    = p.cntInLat   ?? 5;
   visCntInLon    = p.cntInLon   ?? 2;
+  visLonSpread   = p.lonSpread  ?? 0.70;
   visCntOutLat   = p.cntOutLat  ?? 2;
   visCntOutLon   = p.cntOutLon  ?? 3;
   visCntPoints   = p.cntPoints  ?? 8;
@@ -679,6 +686,7 @@ function visLoad(t) {
   const sl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
   sv('sl-cnt-in-lat',  visCntInLat);   sl('lbl-cnt-in-lat',  visCntInLat);
   sv('sl-cnt-in-lon',  visCntInLon);   sl('lbl-cnt-in-lon',  visCntInLon);
+  sv('sl-lon-spread',  visLonSpread);  sl('lbl-lon-spread',  visLonSpread);
   sv('sl-cnt-out-lat', visCntOutLat);  sl('lbl-cnt-out-lat', visCntOutLat);
   sv('sl-cnt-out-lon', visCntOutLon);  sl('lbl-cnt-out-lon', visCntOutLon);
   sv('sl-cnt-points',  visCntPoints);  sl('lbl-cnt-points',  visCntPoints);
@@ -1868,11 +1876,11 @@ function drawBall(b, hovered, selected) {
     { rx: r*.76, ry: r*.13, rot: 0,             cy: y+r*.62, spd: .38 },
     { rx: r*.52, ry: r*.09, rot: 0,             cy: y-r*.82, spd: 1.80 },
     { rx: r*.52, ry: r*.09, rot: 0,             cy: y+r*.82, spd: .22 },
-    { rx: r*.17, ry: r*.97, rot:  Math.PI/9,        cy: y,       spd: 1.65 }, // +20° pair 1
-    { rx: r*.17, ry: r*.97, rot: -Math.PI/9,        cy: y,       spd: .42  }, // -20° mirror
-    { rx: r*.17, ry: r*.97, rot:  Math.PI/9*1.75,   cy: y,       spd: 1.10 }, // +35° pair 2
-    { rx: r*.17, ry: r*.97, rot: -Math.PI/9*1.75,   cy: y,       spd: .78  }, // -35° mirror
-    { rx: r*.17, ry: r*.97, rot:  0,                cy: y,       spd: 1.38 }, // 0° center
+    { rx: r*.17, ry: r*.97, rot:  visLonSpread*0.5,  cy: y,       spd: 1.65 }, // inner pair +
+    { rx: r*.17, ry: r*.97, rot: -visLonSpread*0.5,  cy: y,       spd: .42  }, // inner pair -
+    { rx: r*.17, ry: r*.97, rot:  visLonSpread,      cy: y,       spd: 1.10 }, // outer pair +
+    { rx: r*.17, ry: r*.97, rot: -visLonSpread,      cy: y,       spd: .78  }, // outer pair -
+    { rx: r*.17, ry: r*.97, rot:  0,                 cy: y,       spd: 1.38 }, // center
   ];
   // ELPS[0-6] = latitude (↔), ELPS[7-11] = longitude (↕)
   const latSlice = ELPS.slice(0, Math.min(visCntInLat, 7));
@@ -1916,7 +1924,7 @@ function drawBall(b, hovered, selected) {
     }
   }
   function outerRingSpark(orRx, orRy, rot, tSpd, scale = 1.0) {
-    if (scale <= 0.01) return;
+    if (scale <= 0.01 || visCntPoints <= 0) return;
     const cr = Math.cos(rot), sr = Math.sin(rot);
     const sT = animTime*tSpd + bp;
     const sx = x+Math.cos(sT)*orRx*cr-Math.sin(sT)*orRy*sr;
