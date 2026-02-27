@@ -164,8 +164,8 @@ body.beige {
 
 /* ── Sync buttons ────────────────────────────────────────── */
 #sync-bar {
-  position: fixed; bottom: 128px; left: 36px; z-index: 23;
-  display: flex; flex-direction: column; gap: 6px; align-items: flex-start;
+  position: fixed; bottom: 0; left: 10px; height: 120px; z-index: 23;
+  display: flex; flex-direction: column; justify-content: center; gap: 6px; align-items: flex-start;
 }
 #sync-bar button, #sync-bar label {
   font-family: 'Syne Mono', monospace; font-size: 9px; letter-spacing: 0.15em;
@@ -276,6 +276,7 @@ body.beige {
   background: var(--bg);
   border-top: 1px solid var(--border);
   display: flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 0 280px 0 110px;
   z-index: 22; pointer-events: all;
   transition: background 0.35s, border-color 0.35s;
 }
@@ -367,12 +368,13 @@ body.beige {
 .vp-pal.active { border-color: var(--text); }
 .vp-pal-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
 
-/* ── Info box (fixed bottom-right) ───────────────────────── */
+/* ── Info box (in floor bar, bottom-right) ───────────────── */
 #tooltip {
-  position: fixed; bottom: 128px; right: 10px;
-  width: 260px; max-height: 160px; overflow-y: auto;
+  position: fixed; bottom: 0; right: 10px;
+  width: 260px; height: 120px; overflow-y: auto;
   background: var(--panel-bg); backdrop-filter: blur(12px);
-  border: 1px solid var(--border); padding: 10px 14px; border-radius: 3px;
+  border-left: 1px solid var(--border); border-top: 1px solid var(--border);
+  padding: 10px 14px;
   font-size: 11px; line-height: 1.65; color: var(--text);
   pointer-events: none; opacity: 0;
   transition: opacity 0.15s; font-family: 'Syne Mono', monospace; z-index: 30;
