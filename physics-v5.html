@@ -300,6 +300,13 @@ body.beige {
   padding: 10px 20px; cursor: pointer; border-radius: 2px; transition: all 0.18s;
 }
 #add-btn:hover { background: var(--tab-act-bg); color: var(--tab-act-text); }
+#plain-label {
+  display: flex; align-items: center; gap: 5px; cursor: pointer;
+  font-family: 'Syne Mono', monospace; font-size: 9px; letter-spacing: 0.12em;
+  color: var(--text-dim); white-space: nowrap; user-select: none;
+}
+#plain-label:hover { color: var(--text); }
+#plain-chk { accent-color: var(--text-dim); cursor: pointer; }
 
 /* ── Hint ────────────────────────────────────────────────── */
 #hint {
@@ -609,6 +616,10 @@ body.beige {
   <input id="add-input" type="text" placeholder="Titel / Punkt 1 / Punkt 2 …" />
   <select id="prio-sel"></select>
   <button id="add-btn" onclick="addTodo()">+ Hinzufügen</button>
+  <label id="plain-label">
+    <input type="checkbox" id="plain-chk">
+    <span>Plain</span>
+  </label>
 </div>
 
 <div id="tooltip"></div>
@@ -1244,9 +1255,10 @@ function addTodo() {
   const type = document.getElementById('prio-sel').value || 'workflow';
   const raw  = inp.value.trim();
   if (!raw) return;
-  // "Titel / Punkt 1 / Punkt 2" → "Titel\n- Punkt 1\n- Punkt 2"
+  // "Titel / Punkt 1 / Punkt 2" → "Titel\n- Punkt 1\n- Punkt 2" (unless plain mode)
+  const plain = document.getElementById('plain-chk').checked;
   const parts = raw.split(/\s*\/\s*/);
-  const text  = parts.length > 1
+  const text  = (!plain && parts.length > 1)
     ? parts[0].trim() + '\n' + parts.slice(1).map(p => '- ' + p.trim()).join('\n')
     : raw;
   spawnBall({ text, type, id: nextId++ });
