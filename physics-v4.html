@@ -502,7 +502,7 @@ body.beige {
   <div class="vp-section">Sonstige</div>
   <div class="vp-row">
     <label>Speed <span id="lbl-speed">1.0</span></label>
-    <input type="range" id="sl-speed" min="0.2" max="2.5" step="0.1" value="1.0"
+    <input type="range" id="sl-speed" min="0.05" max="1.5" step="0.05" value="1.0"
       oninput="visSpeed=+this.value; document.getElementById('lbl-speed').textContent=this.value">
   </div>
   <div class="vp-row">
@@ -525,10 +525,17 @@ body.beige {
     <input type="range" id="sl-bgdark" min="0.0" max="3.0" step="0.1" value="1.0"
       oninput="visBgDark=+this.value; document.getElementById('lbl-bgdark').textContent=this.value">
   </div>
-  <div class="vp-row" style="flex-direction:row;align-items:center;gap:8px;margin-top:2px">
-    <input type="checkbox" id="cb-white-lines" style="width:16px;height:16px;cursor:pointer;accent-color:#aaa"
-      onchange="visWhiteLines=this.checked">
-    <label for="cb-white-lines" style="cursor:pointer;font-size:12px">Linien weiß</label>
+  <div class="vp-row" style="flex-direction:row;align-items:center;gap:12px;flex-wrap:wrap;margin-top:2px">
+    <div style="display:flex;align-items:center;gap:6px">
+      <input type="checkbox" id="cb-white-lines" style="width:16px;height:16px;cursor:pointer;accent-color:#aaa"
+        onchange="visWhiteLines=this.checked">
+      <label for="cb-white-lines" style="cursor:pointer;font-size:12px">Linien weiß</label>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px">
+      <input type="checkbox" id="cb-black-text" style="width:16px;height:16px;cursor:pointer;accent-color:#aaa"
+        onchange="visTextBlack=this.checked">
+      <label for="cb-black-text" style="cursor:pointer;font-size:12px">Schrift schwarz</label>
+    </div>
   </div>
   <div class="vp-row" style="margin-top:4px">
     <label style="margin-bottom:6px">Farben</label>
@@ -590,6 +597,7 @@ let visOuterLat     = 1.0;  // Linien außen  Querschnitt
 let visOuterLon     = 1.0;  // Linien außen  Längsschnitt
 let visPoints       = 1.0;  // Orbit-Punkte (Sparks)
 let visWhiteLines   = false; // alle Linien + Punkte auf Weiß
+let visTextBlack    = false; // Kugeltext auf Schwarz
 let vis3dStroke     = 0.07;  // Konturstärke (Faktor × fs)
 let vis3dFill       = 0.06;  // Innenfüllung (Opazität)
 let vis3dShadow     = 0.28;  // Schatten Stärke
@@ -623,7 +631,7 @@ function visSave() {
   visPresets[theme] = {
     cntInLat:visCntInLat, cntInLon:visCntInLon, cntOutLat:visCntOutLat, cntOutLon:visCntOutLon, cntPoints:visCntPoints, trailStep:visTrailStep,
     speed:visSpeed, innerLat:visInnerLat, innerLon:visInnerLon, outerLat:visOuterLat, outerLon:visOuterLon, points:visPoints,
-    whiteLines:visWhiteLines,
+    whiteLines:visWhiteLines, textBlack:visTextBlack,
     s3stroke:vis3dStroke, s3fill:vis3dFill, s3glow:vis3dGlow,
     s3shadow:vis3dShadow, s3sdist:vis3dShadowDist,
     s3lift:vis3dLift, s3arch:vis3dArch, s3tilt:vis3dTilt, s3disc:vis3dDisc,
@@ -645,7 +653,8 @@ function visLoad(t) {
   visOuterLat    = p.outerLat   ?? 1.0;
   visOuterLon    = p.outerLon   ?? 1.0;
   visPoints      = p.points     ?? 1.0;
-  visWhiteLines  = p.whiteLines ?? false;
+  visWhiteLines  = p.whiteLines  ?? false;
+  visTextBlack   = p.textBlack   ?? false;
   vis3dStroke     = p.s3stroke ?? 0.07;
   vis3dFill       = p.s3fill   ?? 0.06;
   vis3dGlow       = p.s3glow   ?? 0.0;
@@ -678,6 +687,7 @@ function visLoad(t) {
   sv('sl-base',        visBallBase);   sl('lbl-base',        visBallBase);
   sv('sl-bgdark',      visBgDark);     sl('lbl-bgdark',      visBgDark);
   const cb = document.getElementById('cb-white-lines'); if (cb) cb.checked = visWhiteLines;
+  const cb2 = document.getElementById('cb-black-text'); if (cb2) cb2.checked = visTextBlack;
   sv('sl-3d-stroke', vis3dStroke);     sl('lbl-3d-stroke', vis3dStroke);
   sv('sl-3d-fill',   vis3dFill);       sl('lbl-3d-fill',   vis3dFill);
   sv('sl-3d-glow',   vis3dGlow);       sl('lbl-3d-glow',   vis3dGlow);
@@ -1847,11 +1857,11 @@ function drawBall(b, hovered, selected) {
     { rx: r*.76, ry: r*.13, rot: 0,             cy: y+r*.62, spd: .38 },
     { rx: r*.52, ry: r*.09, rot: 0,             cy: y-r*.82, spd: 1.80 },
     { rx: r*.52, ry: r*.09, rot: 0,             cy: y+r*.82, spd: .22 },
-    { rx: r*.17, ry: r*.97, rot: Math.PI/5,     cy: y,       spd: 1.65 },
-    { rx: r*.17, ry: r*.97, rot: Math.PI/2.7,   cy: y,       spd: .42 },
-    { rx: r*.17, ry: r*.97, rot: Math.PI/4,     cy: y,       spd: 1.10 },
-    { rx: r*.17, ry: r*.97, rot: -Math.PI/3.4,  cy: y,       spd: .78 },
-    { rx: r*.17, ry: r*.97, rot: Math.PI/1.55,  cy: y,       spd: 1.38 },
+    { rx: r*.17, ry: r*.97, rot:  Math.PI/9,        cy: y,       spd: 1.65 }, // +20° pair 1
+    { rx: r*.17, ry: r*.97, rot: -Math.PI/9,        cy: y,       spd: .42  }, // -20° mirror
+    { rx: r*.17, ry: r*.97, rot:  Math.PI/9*1.75,   cy: y,       spd: 1.10 }, // +35° pair 2
+    { rx: r*.17, ry: r*.97, rot: -Math.PI/9*1.75,   cy: y,       spd: .78  }, // -35° mirror
+    { rx: r*.17, ry: r*.97, rot:  0,                cy: y,       spd: 1.38 }, // 0° center
   ];
   // ELPS[0-6] = latitude (↔), ELPS[7-11] = longitude (↕)
   const latSlice = ELPS.slice(0, Math.min(visCntInLat, 7));
@@ -1978,7 +1988,7 @@ function drawBall(b, hovered, selected) {
   else           b._wf += (0 - b._wf) * 0.66;    // disengage ~3 frames (3× faster)
   const wf = r < 50 ? 0 : b._wf;
 
-  const textCol = lightBg ? 'rgba(255,255,255,.82)' : Th.ballText;
+  const textCol = visTextBlack ? 'rgba(0,0,0,0.85)' : (lightBg ? 'rgba(255,255,255,.82)' : Th.ballText);
   const fs      = Math.max(7, r * 0.27);
   ctx.font         = `600 ${fs}px Syne, sans-serif`;
   ctx.textAlign    = 'center';
