@@ -1328,19 +1328,13 @@ canvas.addEventListener('touchstart', e => {
     const dx = e.touches[0].clientX - e.touches[1].clientX;
     const dy = e.touches[0].clientY - e.touches[1].clientY;
     pinchStartDist = Math.hypot(dx, dy);
-    // Unfreeze any dragged ball before switching to pinch
-    const db = getDragBall();
-    if (db) Body.setStatic(db.body, false);
+    // Keep ball frozen — no unfreeze, no teleport (avoids physics-tick jitter)
     dragState    = null;
     touchHistory = [];
     if (selectedIdx >= 0 && balls[selectedIdx]) {
       const sb = balls[selectedIdx];
       pinchStartR = sb.r;
-      // Freeze immediately at finger midpoint so ball doesn't drift
-      const mx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-      const my = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-      Body.setStatic(sb.body, true);
-      Body.setPosition(sb.body, { x: mx, y: Math.min(my, H - sb.r) });
+      Body.setStatic(sb.body, true);  // hard freeze, stays at current position
     } else {
       pinchStartR = null;
     }
@@ -1394,7 +1388,9 @@ canvas.addEventListener('touchend', e => {
     pinchStartDist = null;
     pinchStartR    = null;
     if (selectedIdx >= 0 && balls[selectedIdx]) {
-      Body.setStatic(balls[selectedIdx].body, false);
+      const pb = balls[selectedIdx].body;
+      Body.setStatic(pb, false);
+      Body.setVelocity(pb, { x: 0, y: 0 });  // no throw after pinch — falls naturally
     }
     return;
   }
